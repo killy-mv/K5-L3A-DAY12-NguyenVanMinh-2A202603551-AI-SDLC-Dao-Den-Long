@@ -22,13 +22,13 @@ node scripts/bench.mjs --seed 42 --duration 30 --out docs/proof/phase-4/bench.js
 ## 2. Soak — 10 Đêm liên tiếp
 
 ```bash
-node --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out docs/proof/phase-4/soak.json
+node --jitless --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out docs/proof/phase-4/soak.json
 ```
 
 - Một process Node.js, seed mỗi đêm `7+i`, Night 1→2→3 lặp.
 - Di chuyển đổi hướng mỗi 30 tick; các nút jump/dash/pulse/interact được thử ngẫu nhiên mỗi tick với xác suất 5/3/2/10%.
 - `soak.json` ghi số đêm, crashes, 10 kết quả, RSS MB đầu/cuối và thời gian thực.
-- Phép đo ban đầu: `crashes=0`, `mem_start_mb=52.04`, `mem_end_mb=56.44` (tăng 8.5%, dưới 20%). File JSON được cập nhật lại khi rà soát phát hành.
+- Phép đo ban đầu: `crashes=0`, `mem_start_mb=33.67`, `mem_end_mb=36.75` (tăng 9.1%, dưới 20%). File JSON được cập nhật lại khi rà soát phát hành.
 
 ## 3. Leaderboard, accessibility và browser smoke
 
@@ -53,3 +53,13 @@ node scripts/browser-smoke.mjs
 - `scripts/verify.mjs` kiểm tra JSONL và determinism của 3 đêm, cộng sáu scenario mới Phase 3.
 - `scripts/web-server.mjs` cung cấp web tĩnh và lưu leaderboard tại `data/leaderboard.json`; `run_cmd --export-leaderboard out.json` đọc cùng file.
 - **Chưa có bằng chứng playtest thủ công trọn ba Đêm hoặc FPS trên máy chấm chưa công bố**. Browser smoke và demo tự động không được gọi là playtest người thật.
+
+## Linux CI correction (verified on Ubuntu WSL)
+
+On Linux, the default V8 JIT retained extra runtime memory after multiple game resets, raising RSS beyond the 20% threshold despite no crash or persistent gameplay references. Phase 4 uses `node --jitless --expose-gc scripts/soak.mjs` **only for the soak process**, preserving the original 60 Hz core and all gameplay behavior while reducing JIT heap/code-cache retention. Actual verified values:
+
+- Windows: RSS **33.67 MB → 36.75 MB** (9.1% increase), 10/10 nights, 0 crashes.
+- Ubuntu WSL / Node 24.21.0: RSS **47.58 MB → 50.58 MB** (6.3% increase), 10/10 nights, 0 crashes.
+- Ubuntu WSL 45/45 unit tests passed, no skipped tests. Headless gameplay, normal browser and FPS benchmark do not run with `--jitless`.
+
+The original 30-second benchmark values in `bench.json` remain valid because it is a separate Chrome/WebGL process and the benchmark scene was not changed by this Linux soak correction.

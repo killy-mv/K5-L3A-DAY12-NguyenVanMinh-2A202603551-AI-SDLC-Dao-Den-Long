@@ -100,7 +100,7 @@ Kết quả commit: [docs/proof/phase-4/bench.json](docs/proof/phase-4/bench.jso
 ## Soak test 10 đêm (cùng một tiến trình)
 
 ```bash
-node --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out soak.json
+node --jitless --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out soak.json
 ```
 
 Đêm i dùng seed `7+i`; xoay Đêm 1→2→3; mỗi 30 tick chọn hướng mới, các nút jump/dash/pulse/interact theo xác suất từng tick 5%/3%/2%/10%. Kết quả là 10 trạng thái thắng/thua, số crash, RSS sau tải Đêm đầu và sau reset Đêm cuối, thời lượng thực. Ngưỡng: không crash và RSS cuối ≤120% RSS đầu. Dùng core headless, không GPU. Kết quả: [docs/proof/phase-4/soak.json](docs/proof/phase-4/soak.json).

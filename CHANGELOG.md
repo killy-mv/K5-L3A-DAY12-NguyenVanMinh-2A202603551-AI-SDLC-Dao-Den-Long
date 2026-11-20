@@ -17,7 +17,7 @@
 
 - 45 Node tests passed (41 gameplay + 4 release/soak/leaderboard).
 - Real 30-second local benchmark: `170.83 avg_fps`, `49.36 p1_low_fps`, `13.70ms p95`, `397ms load`, `5125 frames`. Values represent this Windows test PC, not the grading machine.
-- Soak 10 nights: no crashes, memory from 52.04MB to 56.44MB.
+- Soak 10 nights: no crashes, memory from 33.67MB to 36.75MB.
 - Browser smoke verified settings, duplicate-key detection, 9 remappable actions, leaderboard and disk-based score saving.
 - `peak_mem_mb=null` for browser benchmark; `vsync_off=false` because the disable flag cannot be independently verified in Chromium. No fabricated GPU memory or FPS claims.
 

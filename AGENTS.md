@@ -37,7 +37,7 @@
 ## Phase 4 / v1.0.0 — release harness
 
 - Current contract `game.contract.json` is v1.3; do not change the legacy v1.0–v1.2 gameplay outputs. The optional `Game.updateShades(true)` argument is **benchmark-only** and leaves default headless behavior unchanged.
-- Full verification: `npm --prefix web test`, `npm --prefix web run build`, `node scripts/verify.mjs`, `node --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out soak.json`, `node scripts/bench.mjs --seed 42 --duration 30 --out bench.json`.
+- Full verification: `npm --prefix web test`, `npm --prefix web run build`, `node scripts/verify.mjs`, `node --jitless --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out soak.json`, `node scripts/bench.mjs --seed 42 --duration 30 --out bench.json`.
 - The FPS benchmark must measure actual `requestAnimationFrame` intervals in a real Chromium rendering process, with 200 wandering shades, 100 motes, 3 lamps lit, warmup 3s and 1280x720. Do not use headless simulation throughput as FPS.
 - Browser mode `?benchmark=1` disables pickups, spawns, combat, lantern-fuel decay and game-over solely inside this isolated benchmark scene. Extra creative entities are excluded.
 - Score files are user data on disk at `data/leaderboard.json`, intentionally gitignored. Portable server/export: `scripts/run.mjs`; leaderboard validation and top-10 sort: `scripts/leaderboard.mjs`. Use unique temporary paths for tests.

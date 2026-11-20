@@ -95,3 +95,6 @@ Evidence: docs/proof/phase-4/bench.json, soak.json, browser screenshots and lead
 Token/cost: no machine-readable token billing log exists for the ChatGPT/Bash connector. Rough estimate described in docs/retro-phase-4.md, no invented token counts or API invoice.
 
 Limits: Chrome WebGL cannot reliably report peak process RSS and does not confirm vsync status. We leave peak_mem_mb=null and vsync_off=false and disclose both; cannot claim results from grading machine before its configuration is released.
+
+
+Release CI fix: GitHub Actions Ubuntu failed soak memory assertion (default V8 JIT code cache raised end RSS). Reproduced with Node 24.21.0 on local Ubuntu WSL: default RSS 50.49→66.11MB, exit 1; changed soak-only Node command to --jitless --expose-gc, then Linux RSS 47.58→50.58MB, exit 0; Windows RSS 33.67→36.75MB. Same-process 10-night simulation, same inputs and seed, no skip. Updated tests, contract, workflow and evidence.

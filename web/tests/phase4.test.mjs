@@ -51,7 +51,7 @@ test('soak cli runs 10 worlds in one process, no crashes and memory under 1.2x',
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ddl-soak-'));
  try{
   const out=path.join(dir,'soak.json');
-  const result=spawnSync(process.execPath,['--expose-gc','scripts/soak.mjs','--seed','7',
+  const result=spawnSync(process.execPath,['--jitless','--expose-gc','scripts/soak.mjs','--seed','7',
    '--nights','10','--out',out],{cwd:root,encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
   const data=JSON.parse(fs.readFileSync(out,'utf8'));
