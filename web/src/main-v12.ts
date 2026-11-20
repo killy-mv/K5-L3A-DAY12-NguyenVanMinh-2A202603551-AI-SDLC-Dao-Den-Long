@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {Game,MAPS,TUNING,DT} from './core/game.js';
-import './style-v11.css';
+import './style-v12.css';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
 <div class="hud">
@@ -26,19 +26,26 @@ app.innerHTML=`
  <div id="settingsPanel" class="hidden">
   <div class="setting"><span>Âm lượng</span><input id="volume" type="range" min="0" max="100" value="35"></div>
   <div class="setting"><span>Độ nhạy chuột</span><input id="sensitivity" type="range" min="1" max="100" value="40"></div>
+  <div class="setting"><label for="colorblind">Bảng màu dễ phân biệt</label><input id="colorblind" type="checkbox" style="width:22px;height:22px"></div>
   <button id="closeSettings" class="secondary">Đóng cài đặt</button>
  </div>
 </div></div>`;
 const el=(id:string)=>document.getElementById(id)!;
-let settings={volume:.35,sensitivity:.004};
+let settings={volume:.35,sensitivity:.004,colorblind:false};
 try{settings={...settings,...JSON.parse(localStorage.getItem('ddl-settings')||'{}')}}catch{}
+// Optional visual-only check; does not alter headless state or persist preference.
+if(new URLSearchParams(location.search).has('colorblind'))settings.colorblind=true;
 (el('volume') as HTMLInputElement).value=String(Math.round(settings.volume*100));
 (el('sensitivity') as HTMLInputElement).value=String(Math.round(settings.sensitivity*10000));
+(el('colorblind') as HTMLInputElement).checked=settings.colorblind;
 const saveSettings=()=>{settings.volume=Number((el('volume') as HTMLInputElement).value)/100;
  settings.sensitivity=Number((el('sensitivity') as HTMLInputElement).value)/10000;
+ settings.colorblind=(el('colorblind') as HTMLInputElement).checked;
+ applyColorMode();
  localStorage.setItem('ddl-settings',JSON.stringify(settings));};
 el('volume').addEventListener('input',saveSettings);
 el('sensitivity').addEventListener('input',saveSettings);
+el('colorblind').addEventListener('change',saveSettings);
 el('settings').addEventListener('click',()=>el('settingsPanel').classList.remove('hidden'));
 el('closeSettings').addEventListener('click',()=>el('settingsPanel').classList.add('hidden'));
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
@@ -77,7 +84,9 @@ may.add(create(new THREE.SphereGeometry(.14,8,6),scarfMat,.24,1.49,-.1));
 may.add(create(new THREE.CylinderGeometry(.025,.025,.4,6),m('#ffe9b0'),.77,1.69,.05));
 may.add(create(new THREE.OctahedronGeometry(.21),new THREE.MeshBasicMaterial({color:'#FFE9B0'}),.77,1.43,.05));
 const mayLight=new THREE.PointLight('#FFB347',2,7);mayLight.position.set(.77,1.43,.05);may.add(mayLight);
-const lanterns=new Map<string,{group:THREE.Group,lamp:THREE.Mesh,light:THREE.PointLight}>();
+type LanternVisual={group:THREE.Group,lamp:THREE.Mesh,light:THREE.PointLight,
+ fuelBar:THREE.Group,fuelFill:THREE.Mesh,broken:THREE.Mesh};
+const lanterns=new Map<string,LanternVisual>();
 const motes=new Map<string,THREE.Group>(),shades=new Map<string,THREE.Group>(),drifters=new Map<string,THREE.Group>(),charms=new Map<string,THREE.Mesh>();
 const glowCanvas=document.createElement('canvas');glowCanvas.width=64;glowCanvas.height=64;
 const gctx=glowCanvas.getContext('2d')!, grad=gctx.createRadialGradient(32,32,1,32,32,31);
@@ -85,6 +94,14 @@ grad.addColorStop(0,'rgba(255,246,194,1)');grad.addColorStop(.3,'rgba(255,229,13
 gctx.fillStyle=grad;gctx.fillRect(0,0,64,64);
 const glowSpriteMaterial=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(glowCanvas),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
 const shadeMaterial=m('#120A1A',{roughness:.3}),eyes=new THREE.MeshBasicMaterial({color:'#7A3CFF'});
+const shadeOutlines=new THREE.MeshBasicMaterial({color:'#7A3CFF',wireframe:true,transparent:true,opacity:.35,depthWrite:false});
+function applyColorMode(){
+ const on=settings.colorblind;
+ eyes.color.set(on?'#00B3FF':'#7A3CFF');
+ shadeOutlines.color.set(on?'#00B3FF':'#7A3CFF');
+ document.body.classList.toggle('colorblind',on);
+}
+applyColorMode();
 let game=new Game({night:1,seed:2026}),night=1,total=0,mode:'menu'|'intro'|'playing'|'pause'|'won'|'lost'|'dawn'='menu';
 function clearGroup(g:THREE.Group){while(g.children.length)g.remove(g.children[0]);}
 function addIsland(x:number,z:number,r:number,y=0){
@@ -155,8 +172,20 @@ function buildWorld(id:number){
   g.add(create(new THREE.CylinderGeometry(.12,.16,4.4,8),m('#6B4A2F'),0,2.25,0));
   const lamp=create(new THREE.SphereGeometry(.58,12,10),m('#5B5F6E',{emissive:'#111320'}),0,4.2,0);
   g.add(lamp);g.add(create(new THREE.ConeGeometry(.95,.53,8),m('#6B4A2F'),0,4.95,0));
+  const tornShape=new THREE.Shape();
+  tornShape.moveTo(-.16,-.2);tornShape.lineTo(.12,-.06);
+  tornShape.lineTo(-.03,.11);tornShape.lineTo(-.13,.21);tornShape.closePath();
+  const broken=create(new THREE.ShapeGeometry(tornShape),
+   new THREE.MeshBasicMaterial({color:'#151628',side:THREE.DoubleSide}),0,4.2,.51);
+  g.add(broken);
+  const fuelBar=new THREE.Group();fuelBar.position.set(0,5.65,0);
+  const bg=create(new THREE.PlaneGeometry(1.55,.25),
+   new THREE.MeshBasicMaterial({color:'#131727',transparent:true,opacity:.8,depthWrite:false}));
+  const fuelFill=create(new THREE.PlaneGeometry(1.38,.15),
+   new THREE.MeshBasicMaterial({color:'#FFB347',transparent:true,depthWrite:false}),0,0,.02);
+  fuelBar.add(bg,fuelFill);g.add(fuelBar);
   const light=new THREE.PointLight('#FFB347',0,13);light.position.y=4.2;g.add(light);
-  props.add(g);lanterns.set(l.id,{group:g,lamp,light});
+  props.add(g);lanterns.set(l.id,{group:g,lamp,light,fuelBar,fuelFill,broken});
  }
  motes.forEach(obj=>scene.remove(obj));motes.clear();
  shades.forEach(obj=>scene.remove(obj));shades.clear();
@@ -174,6 +203,7 @@ function makeShade(){
  const g=new THREE.Group();g.add(create(new THREE.SphereGeometry(.68,12,10),shadeMaterial.clone()));
  g.add(create(new THREE.SphereGeometry(.12,8,6),eyes,-.23,.15,-.52));
  g.add(create(new THREE.SphereGeometry(.12,8,6),eyes,.23,.15,-.52));
+ g.add(create(new THREE.SphereGeometry(.715,12,10),shadeOutlines));
  for(let i=0;i<4;i++)g.add(create(new THREE.ConeGeometry(.15,.7,6),shadeMaterial,(i-1.5)*.27,-.51,.1));
  scene.add(g);return g;
 }
@@ -189,10 +219,20 @@ function sync(){
  let lit=0;
  for(const l of game.lanterns){
   const obj=lanterns.get(l.id);if(!obj)continue;
-  obj.group.position.set(l.pos[0],l.pos[1],l.pos[2]);obj.light.intensity=l.lit?10:0;
+  obj.group.position.set(l.pos[0],l.pos[1],l.pos[2]);
+  const fuel=l.fuelUnits/60;
+  const low=l.lit&&fuel<30,blink=low?(Math.floor(game.simTick/30)%2===0?1:.35):1;
+  obj.light.intensity=l.lit?10*blink:0;
   const mat=obj.lamp.material as THREE.MeshStandardMaterial;
   mat.color.set(l.lit?'#FFB347':'#5B5F6E');
-  mat.emissive.set(l.lit?'#FFB347':'#222532');mat.emissiveIntensity=l.lit?2:.15;
+  mat.emissive.set(l.lit?'#FFB347':'#222532');mat.emissiveIntensity=l.lit?2*blink:.15;
+  obj.lamp.scale.setScalar(l.lit?1:.8);obj.broken.visible=!l.lit;
+  obj.fuelBar.visible=l.lit;
+  obj.fuelBar.quaternion.copy(camera.quaternion);
+  const fraction=Math.max(0,Math.min(1,fuel/100));
+  obj.fuelFill.scale.x=fraction;obj.fuelFill.position.x=-(1-fraction)*.69;
+  const fillMat=obj.fuelFill.material as THREE.MeshBasicMaterial;
+  fillMat.color.set(low?'#FF5A5F':'#F2C14E');fillMat.opacity=blink;
   if(l.lit)lit++;
  }
  const existing=new Set(game.motes.map((x:any)=>x.id));
@@ -235,18 +275,22 @@ function sync(){
  el('health').textContent='♥ '.repeat(game.player.flames).trim()||'♡';
  el('lamps').textContent='🏮 '+lit+'/'+game.lanterns.length+' Đèn';
  el('score').textContent='★ '+game.score;el('total').textContent='Tổng '+(total+game.score);
- el('count').textContent=game.player.carried+'/10';
- el('slots').innerHTML=Array.from({length:10},(_,i)=>'<span class="slot '+(i<game.player.carried?'full':'')+'"></span>').join('');
+ el('count').textContent=game.player.carried+'/'+game.capacity;
+ el('slots').innerHTML=Array.from({length:game.capacity},(_,i)=>'<span class="slot '+(i<game.player.carried?'full':'')+'"></span>').join('');
  const mm=Math.floor(game.timeLeft/60),ss=Math.ceil(game.timeLeft%60);
- el('timer').textContent=String(mm).padStart(2,'0')+':'+String(ss===60?59:ss).padStart(2,'0');
+ el('timer').textContent=(game.timeLeft<=30?'⚠ ':'')+String(mm).padStart(2,'0')+':'+String(ss===60?59:ss).padStart(2,'0');
  el('timer').classList.toggle('danger',game.timeLeft<=30);
  const buff=game.player.charmTicks;
  el('charm').textContent=buff?'🍃 Bùa Gió '+(buff/60).toFixed(1)+' s':'🍃 Không có bùa';
  el('dash').textContent='Lướt: '+(game.player.dashCd>0?(game.player.dashCd/60).toFixed(1)+'s':'sẵn sàng');
  el('pulse').textContent='Tỏa sáng: '+(game.player.pulseCd>0?(game.player.pulseCd/60).toFixed(1)+'s':'sẵn sàng');
- const near=game.lanterns.filter((l:any)=>!l.lit&&Math.hypot(l.pos[0]-game.player.pos[0],l.pos[2]-game.player.pos[2])<=2)
+ const near=game.lanterns.filter((l:any)=>(!l.lit||l.fuelUnits<6000)&&
+  Math.hypot(l.pos[0]-game.player.pos[0],l.pos[2]-game.player.pos[2])<=2)
  .sort((a:any,b:any)=>a.id.localeCompare(b.id));
- el('hint').textContent=near.length?'E — Nạp ánh sáng ('+near[0].deposited+'/10)':'';
+ const target=near[0];
+ el('hint').textContent=target?(target.lit?
+  'E — Châm dầu '+target.id+' ('+(target.fuelUnits/60).toFixed(1)+'%)':
+  'E — Nạp ánh sáng ('+target.deposited+'/'+(target.ever_lit?5:10)+')'):'';
  if(night===3&&game.simTick%1800>=1680&&game.simTick%1800<1800)
   el('windAlert').textContent='🍃 Gió mạnh sắp đến!';
  else el('windAlert').textContent=game.wind.active?'🍃 Gió mạnh đang thổi!':'';
@@ -307,15 +351,26 @@ function menu(){
 function intro(n:number){
  mode='intro';night=n;
  const details=[
-  'Ông Đăng: “Đảo Bến đã chìm trong sương đen. Hãy thu thập đom đóm và thắp 5 ngọn đèn trước bình minh.”',
-  'Ông Đăng: “Đảo Cau có hai bờ đảo nối bằng cầu tre. Con có thể lướt qua gió hoặc dùng bục nhảy để sang bờ bên kia.”',
-  'Ông Đăng: “Đảo Chuông cao ba tầng. Những cơn gió mạnh sẽ thử thách con lần cuối trước khi Bình Minh trở lại.”'
+  'Ông Đăng: “Đảo Bến chìm trong sương. Hãy giữ ít nhất 3/5 đèn sáng đến bình minh. Đèn cạn dầu thì phải châm thêm!”',
+  'Ông Đăng: “Đảo Cau có hai bờ nối bằng cầu tre. Hãy giữ ít nhất 4/6 đèn sáng đến bình minh và châm dầu kịp thời.”',
+  'Ông Đăng: “Đảo Chuông ba tầng đầy gió. Hãy sống sót và giữ ít nhất 5/7 đèn sáng đến bình minh.”'
  ];
  dialog('Đêm '+n+' / 3',(MAPS as Record<number,any>)[n].name,details[n-1],
  [{text:'Bước vào Đêm '+n,run:()=>begin(n)}]);
 }
 function begin(n:number){
- night=n;game=new Game({night:n,seed:2026+n});buildWorld(n);
+ night=n;
+ const preview=new URLSearchParams(location.search).has('visual-proof');
+ const visualScenario=preview?{random_motes:false,random_shades:false,random_drifters:false,
+  shades:[{id:'S1',pos:[0,1,14],state:'wander'}],
+  lanterns:[
+   {id:'L1',pos:[0,0,7],lit:true,fuel:24},
+   {id:'L2',pos:[4,0,10],lit:true,fuel:82},
+   {id:'L3',pos:[-4,0,10],lit:false,ever_lit:true}
+  ]}:undefined;
+ const gameOptions:any={night:n,seed:2026+n};
+ if(preview)gameOptions.scenario=visualScenario;
+ game=new Game(gameOptions);buildWorld(n);
  mode='playing';el('screen').classList.add('hidden');
  pressed.clear();accumulator=0;lastCountdown=-1;camAngle=Math.PI;camPitch=n===3?.18:.48;
  const pos=game.player.pos;
@@ -335,14 +390,14 @@ function result(){
     [{text:'Về menu chính',run:menu}]);
   }else{
    mode='won';
-   dialog('Đêm '+night+' hoàn thành','Đèn lồng bừng sáng',
+   dialog('Đêm '+night+' hoàn thành','Bình minh trở lại',
     'Điểm đêm này: '+game.score+' · Tổng: '+total+' — Ông Đăng đang đợi ở hòn đảo tiếp theo.',
     [{text:'Tiếp tục Đêm '+(night+1),run:()=>intro(night+1)}]);
   }
  }else{
   mode='lost';sound(165,.35);
   dialog('Đêm '+night+' kết thúc','Sương đen còn đó',
-   'Mây đã gục ngã hoặc bình minh đã tới quá sớm. Đừng bỏ cuộc — thử lại đêm này nhé!',
+   'Mây đã cạn Ngọn Lửa hoặc chưa giữ đủ đèn sáng đến bình minh. Hãy thử lại đêm này!',
    [{text:'Chơi lại Đêm '+night,run:()=>begin(night)},{text:'Về menu',run:menu,secondary:true}]);
  }
 }
@@ -387,7 +442,10 @@ function eventReaction(event:any){
  switch(event.name){
   case 'mote_picked':sound(610,.09);break;
   case 'deposit':toast('✦ Đã nạp '+event.data.amount+' đom đóm');sound(400,.17);break;
-  case 'lantern_lit':toast('🏮 Một ngọn đèn đã bừng sáng!');sound(750,.3);break;
+  case 'lantern_lit':toast(event.data.relight?'🏮 Đèn đã được thắp lại!':'🏮 Một ngọn đèn đã bừng sáng!');sound(750,.3);break;
+  case 'refuel':toast('✦ Châm '+event.data.amount+' đom đóm vào đèn');sound(540,.16);break;
+  case 'lantern_out':toast('⚠ Một đèn đã cạn dầu!');sound(160,.3);break;
+  case 'fuel_drain':toast('⚠ Bóng Mực đang hút dầu!');sound(135,.16);break;
   case 'pulse':toast('✧ Ánh sáng xua tan bóng tối');sound(340,.23);break;
   case 'dash':sound(380,.1);break;
   case 'player_hit':toast('⚠ Mây bị tấn công!');sound(170,.2);break;
