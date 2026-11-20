@@ -1,8 +1,8 @@
 {
-  "contract_version": "1.2",
+  "contract_version": "1.3",
   "team": "2A202603551-NguyenVanMinh",
   "build_cmd": "npm --prefix web ci && npm --prefix web run build",
-  "run_cmd": "npm --prefix web run dev -- --host 0.0.0.0",
+  "run_cmd": "node scripts/run.mjs",
   "headless_cmd": "node web/src/headless.mjs",
   "tuning": {
     "player_speed": 6,
@@ -44,5 +44,7 @@
     "drain_per_s": 5,
     "low_fuel_threshold": 30,
     "capacity_max": 20
-  }
+  },
+  "bench_cmd": "node scripts/bench.mjs",
+  "soak_cmd": "node --expose-gc scripts/soak.mjs"
 }

@@ -521,7 +521,7 @@ export class Game {
    const m=this.makeMote(candidate,'dropped',480);m.pickableAfter=this.simTick+1;this.motes.push(m);
   }
  }
- updateShades(){
+ updateShades(ignorePlayer=false){
   const p=this.player;
   for(const s of this.shades){
    if(s.spawnTicks>0){s.spawnTicks--;s.state=s.spawnTicks?'spawning':'wander';continue;}
@@ -558,7 +558,7 @@ export class Game {
     if(withinMap(next,this.night))s.pos=next;
     continue;
    }
-   const distance=dist(s.pos,p.pos);
+   const distance=ignorePlayer?Infinity:dist(s.pos,p.pos);
    if(s.state==='drain'){
     const l=this.lanterns.find(l=>l.id===s.target_lantern_id);
     if(distance<6){s.state='chase';s.target_lantern_id=null;s.drainTicks=0;}

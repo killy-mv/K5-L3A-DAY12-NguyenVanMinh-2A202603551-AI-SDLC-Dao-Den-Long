@@ -9,9 +9,9 @@ import {Game,TUNING,MAPS,runSimulation} from '../src/core/game.js';
 const cleared={random_motes:false,random_shades:false,random_drifters:false,motes:[],shades:[],drifters:[]};
 const find=(r,name)=>r.filter(x=>x.type==='event'&&x.name===name);
 const simulate=(scenario,frames,ticks=1,night=1)=>runSimulation({night,scenario,inputs:{frames}},{ticks,snapshotEvery:1});
-test('Contract v1.2: numeric tuning agrees with engine',()=>{
+test('Contract v1.3: numeric tuning agrees with engine',()=>{
  const contract=JSON.parse(fs.readFileSync(new URL('../../game.contract.json',import.meta.url),'utf8'));
- assert.equal(contract.contract_version,'1.2');
+ assert.equal(contract.contract_version,'1.3');
  assert.deepEqual(contract.tuning,TUNING);
 });
 test('map standard exact lanterns and correct counts per night',()=>{

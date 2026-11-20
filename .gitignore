@@ -6,3 +6,7 @@ web/.vite/
 !.env.example
 *.log
 .DS_Store
+
+# Local release leaderboard (user-owned scores are never checked in)
+data/leaderboard.json
+data/leaderboard.json.tmp-*

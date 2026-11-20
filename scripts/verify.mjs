@@ -11,7 +11,7 @@ const cli=path.resolve('web/src/headless.mjs');
 const base=path.resolve('web/tests/scenarios/phase-2');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'dao-den-long-v12-'));
 const contract=JSON.parse(fs.readFileSync('game.contract.json','utf8'));
-assert.equal(contract.contract_version,'1.2');
+assert.equal(contract.contract_version,'1.3');
 assert.deepEqual(contract.tuning,TUNING);
 let index=0;
 function run(night,seed,scenario,inputs,ticks,snapshotEvery=10){
@@ -79,5 +79,5 @@ try{
  assert.equal(benchmark.rows.at(-1).ticks,18000);
  assert.ok(benchmark.ms<=30000,'Night3 must complete within 30 seconds');
  console.log('PASS performance: 18,000 ticks in '+benchmark.ms.toFixed(0)+'ms (<=30000ms)');
- console.log('PASS v1.2 verification harness');
+ console.log('PASS v1.3 verification harness');
 }finally{fs.rmSync(root,{recursive:true,force:true});}
