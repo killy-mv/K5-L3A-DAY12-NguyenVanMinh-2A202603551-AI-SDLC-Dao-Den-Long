@@ -75,3 +75,23 @@ A test harness initially expected 21,600 steps from old Night 3 duration; update
 Token usage and pricing are not exposed by the connector workflow; exact figures cannot be confirmed.
 
 Human verification outstanding: play all three nights end-to-end, verify setting restoration after browser reload, measure native-GPU FPS at 1280×720, and inspect mouse/keyboard feel.
+
+---
+
+# Phase 4 — TICKET-04 v1.0.0 (2026-11-20)
+
+AI: ChatGPT GPT-6, Bash 2.0 connector thao tác trên Windows dev machine.
+
+Đã triển khai: browser benchmark Three.js có cảnh chuẩn 200 shade, 100 mote, 3 đèn sáng ở 1280x720, không gameplay phụ và camera bay vòng; Node soak 10 đêm trong một process, reset và RSS; server web portable và API leaderboard lưu JSON / export; keybinding 9 action, cảnh báo trùng, chữ lớn, màu dễ phân biệt, giảm chuyển động, cảnh báo 10s/low fuel/spawn; README, retro, changelog, release zip, Github Actions release và MP4 Chrome MediaRecorder.
+
+AI/implementation errors and how detected:
+- Benchmark first run met avg FPS but missed 1% low threshold (28.89 FPS). Profiled heavy draw calls from eight shade meshes. Combined eyes and tentacles geometries in both normal game and benchmark; reran 30 full seconds and measured avg 170.83 / 1% low 49.36 FPS, load 397ms.
+- Browser smoke caught missing leaderboard button in main menu; fixed and tested click through actual Chrome.
+- Chrome MP4 capability checked using MediaRecorder.isTypeSupported; generated and checked actual MP4 ftyp container instead of claiming to have recorded video without an output file.
+- Chrome sometimes holds temporary profile lock after exit on Windows; cleanup warning no longer invalidates measured benchmark data.
+
+Evidence: docs/proof/phase-4/bench.json, soak.json, browser screenshots and leaderboard JSON, docs/demo/demo.mp4. Full Phase 1–3 regression plus new Phase 4 tests (45 total), TypeScript Vite build and deterministic headless verifier.
+
+Token/cost: no machine-readable token billing log exists for the ChatGPT/Bash connector. Rough estimate described in docs/retro-phase-4.md, no invented token counts or API invoice.
+
+Limits: Chrome WebGL cannot reliably report peak process RSS and does not confirm vsync status. We leave peak_mem_mb=null and vsync_off=false and disclose both; cannot claim results from grading machine before its configuration is released.

@@ -1,0 +1,34 @@
+name: Release v1.0.0
+on:
+  push:
+    tags:
+      - phase-4
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install and test
+        run: |
+          npm --prefix web ci
+          npm --prefix web test
+          npm --prefix web run build
+          node scripts/verify.mjs
+          node --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out soak-ci.json
+      - name: Pack portable web build
+        run: python3 scripts/package-release.py
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.0.0             release/dao-den-long-v1.0.0-web.zip             docs/demo/demo.mp4             --target "${GITHUB_SHA}"             --title "Đảo Đèn Lồng v1.0.0 — Bình minh"             --notes-file RELEASE_NOTES.md             --latest

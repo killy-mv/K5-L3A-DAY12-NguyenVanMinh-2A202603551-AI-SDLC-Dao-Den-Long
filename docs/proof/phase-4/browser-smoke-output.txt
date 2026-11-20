@@ -1,0 +1,10 @@
+PASS browser menu/settings/accessibility {
+  count: 9,
+  duplicate: '⚠ Phím q đã được sử dụng',
+  persisted: 'i',
+  big: true,
+  mp4: true,
+  webm: true
+}
+PASS browser leaderboard menu
+PASS browser score screen + POST to disk API Đã lưu điểm trên đĩa!

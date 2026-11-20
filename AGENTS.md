@@ -33,3 +33,14 @@
 
 ### Active Phase 3 browser paths
 - `web/index.html` loads `web/src/main-v12.ts`, which imports `web/src/style-v12.css`. Older v1.1 filename references elsewhere are historical.
+
+## Phase 4 / v1.0.0 — release harness
+
+- Current contract `game.contract.json` is v1.3; do not change the legacy v1.0–v1.2 gameplay outputs. The optional `Game.updateShades(true)` argument is **benchmark-only** and leaves default headless behavior unchanged.
+- Full verification: `npm --prefix web test`, `npm --prefix web run build`, `node scripts/verify.mjs`, `node --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out soak.json`, `node scripts/bench.mjs --seed 42 --duration 30 --out bench.json`.
+- The FPS benchmark must measure actual `requestAnimationFrame` intervals in a real Chromium rendering process, with 200 wandering shades, 100 motes, 3 lamps lit, warmup 3s and 1280x720. Do not use headless simulation throughput as FPS.
+- Browser mode `?benchmark=1` disables pickups, spawns, combat, lantern-fuel decay and game-over solely inside this isolated benchmark scene. Extra creative entities are excluded.
+- Score files are user data on disk at `data/leaderboard.json`, intentionally gitignored. Portable server/export: `scripts/run.mjs`; leaderboard validation and top-10 sort: `scripts/leaderboard.mjs`. Use unique temporary paths for tests.
+- Remappable controls must affect the actual `controls()` input object, persist, catch duplicates, and have reset. Do not modify headless input schema for accessibility.
+- Release archive: `python scripts/package-release.py`. Tag `phase-4` triggers `.github/workflows/release.yml`, producing GitHub Release `v1.0.0` with playable ZIP and demo MP4. Do not claim it was published before verifying GitHub.
+- Evidence lives in `docs/proof/phase-4/`; demo video `docs/demo/demo.mp4`; retro `docs/retro-phase-4.md`. Preserve actual measured values and disclose limitations.

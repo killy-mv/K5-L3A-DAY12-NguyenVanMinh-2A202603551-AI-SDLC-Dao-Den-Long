@@ -1,0 +1,12 @@
+{
+  "contract_version": "1.3",
+  "avg_fps": 170.83,
+  "p1_low_fps": 49.36,
+  "frame_ms_p95": 13.7,
+  "frames": 5125,
+  "load_ms": 397,
+  "peak_mem_mb": null,
+  "vsync_off": false,
+  "renderer": "Three.js 0.181.2 WebGLRenderer, Chromium (vsync disable requested; not verifiable)",
+  "os": "win32 10.0.26200"
+}

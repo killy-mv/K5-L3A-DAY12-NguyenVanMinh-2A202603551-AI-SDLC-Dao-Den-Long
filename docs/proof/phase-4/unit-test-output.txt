@@ -1,0 +1,57 @@
+
+> dao-den-long@1.0.0 test
+> node --test tests/*.test.mjs
+
+✔ Contract v1.3: numeric tuning agrees with engine (2.5154ms)
+✔ map standard exact lanterns and correct counts per night (2.7084ms)
+✔ 20 distinct initial motes; 30 max; 240th tick adds one (4.4433ms)
+✔ camera-relative move and dt 1/60, step tick0 maps into tick1 (1.4395ms)
+✔ pickup checks XZ inclusive and vertical <=1.5, capacity10 (0.4749ms)
+✔ deposit awards 5 per mote and 100 per first light; honors edge (0.6082ms)
+✔ pulse 3 motes, stun120 ticks, push in 15 ticks and +5 score (1.0139ms)
+✔ dash starts only on input edge, 14m/s for 12 ticks (0.3198ms)
+✔ pause consumes tick but freezes sim_tick, timer and cooldown (0.3769ms)
+✔ Bùa Gió pickup activates 600 ticks and respawns after 2700 (0.3853ms)
+✔ Gió Lạc steals before shade, and pulse frightens (0.7737ms)
+✔ shades first spawn exactly at gameplay tick300 with IDs S1 S2 (1.6104ms)
+✔ a lantern scenario override never awards score on initialization (0.2148ms)
+✔ dawn-survived win is decided at dawn after final-tick deposit (0.3666ms)
+✔ determinism of 3 night scenarios, seed and inputs (9.0822ms)
+✔ CLI v1.2 writes JSONL for night 3; bad files exit 2 (121.4866ms)
+✔ fall below Y=-10 loses a flame and all carried motes, ignores invulnerability (0.4189ms)
+✔ safe zone blocks hits and expels a shade from newly lit lantern (0.9681ms)
+✔ night 3 spawn remains on ground Y=0 below the elevated platform (0.1924ms)
+✔ night 2 jump pad produces high upward and horizontal launch velocity (0.2189ms)
+✔ charm boosts run speed to 7.2m/s after pickup (0.7692ms)
+✔ pulse uses 3D distance to target rather than only horizontal XZ (0.2115ms)
+✔ fixed-point fuel decays exactly by 1 every 60 simulation ticks, pauses freeze it (6.3141ms)
+✔ every initial lit scenario lamp defaults to 100 fuel and no score (0.5241ms)
+✔ extinguishing once resets deposited, remembers ever_lit, event occurs at exact tick (0.9105ms)
+✔ refuel ceil calculation and 5 score per mote (1.078ms)
+✔ interact nearest available lantern; lit full ignored; tie sorted by id (8.8109ms)
+✔ relight needs five carried, scores 40 plus 25, boosts capacity and relit_count (0.6322ms)
+✔ first-time light needs 10, grants 100 plus 50 and 12 capacity (0.3396ms)
+✔ successful lights scenario increases capacity, capped at twenty (0.4825ms)
+✔ shade already draining removes 5+1 fuel per second, with fuel_drain at tick60 (1.6232ms)
+✔ two drainers stack with base decay, extinguish low-fuel lamp (0.9264ms)
+✔ wander shade selects nearest weak lamp and enters drain at XZ <=2 (0.2582ms)
+✔ drain exits into chase if player closer than 6 (0.2128ms)
+✔ pulse into drain state awards 15 points rather than 5 (0.7736ms)
+✔ low lamp at 29.9 no protection; 30 has protection (0.3147ms)
+✔ all lit never wins early; dawn threshold 3/5, 4/6, 5/7 (1.0045ms)
+✔ zero flames takes precedence over dawn (0.2565ms)
+✔ same seed, scenario and inputs remain deterministic with drain and refuel (1.747ms)
+✔ shade drain outside 2m or at safe fuel does not consume extra fuel (0.362ms)
+✔ refuel across 30 threshold expels nearby shade in at most 30 ticks (0.4394ms)
+✔ leaderboard rejects bad names / fields and enforces 3-12 ASCII chars (4.5549ms)
+✔ top ten ranks by score desc, ties earlier achieved_at first (0.4649ms)
+✔ leaderboard file persists across a separate process and CLI exports ordered entries (140.4092ms)
+✔ soak cli runs 10 worlds in one process, no crashes and memory under 1.2x (259.5715ms)
+ℹ tests 45
+ℹ suites 0
+ℹ pass 45
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 494.361
