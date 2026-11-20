@@ -20,3 +20,16 @@
 - New test scenarios: `web/tests/scenarios/phase-2`. Evidence: `docs/proof/phase-2`. Acceptance criteria: `docs/spec/phase-2.md`.
 - Git history/tag from Phase 1 must remain intact. Never silently disable failed regression tests; explain any revised expectations from Ticket-02.
 - Review source, tests and generated evidence separately. Do not claim the 30 FPS requirement has been measured using a software-rendering screenshot.
+
+## Phase 3 — Contract v1.2 / Change Request TICKET-03
+
+- Read `docs/adr/0003-lantern-fuel-and-dawn.md` and `CHANGELOG.md`. They explain why old instant victory, old scoring and old lantern interactions are invalid.
+- Gameplay source of truth is now `web/src/core/game-v12.js`; `game.js` re-exports v1.2. `game-v11.js` remains historical, not used by the current build.
+- All fuel internal values are integers in sixtieth units, and all timing is fixed 60Hz. Do not use wall clock or DOM APIs in the engine.
+- Use `npm --prefix web test` (includes Phase 2 applicable regression plus new Phase 3 tests), `npm --prefix web run build`, `node scripts/verify.mjs`; fail CI if any fail.
+- Do not silently skip regression tests. Revised Phase 2 expectations are documented in CHANGELOG (point values, immediate win, contract version). Only replace superseded assertions.
+- Evidence source fixtures live in `web/tests/scenarios/phase-3/`, actual JSONL and real Chrome captures in `docs/proof/phase-3/`. Never hand-edit generated outputs.
+- Change fuel/score/timing only together with root contract tuning and test updates. Browser colorblind styling/extra visuals must remain headless-independent.
+
+### Active Phase 3 browser paths
+- `web/index.html` loads `web/src/main-v12.ts`, which imports `web/src/style-v12.css`. Older v1.1 filename references elsewhere are historical.

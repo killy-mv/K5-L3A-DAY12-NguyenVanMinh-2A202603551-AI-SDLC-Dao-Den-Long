@@ -55,3 +55,23 @@ Harness evolution: new scripts/verify.mjs checks v1.1 contract, deterministic JS
 Token/price: exact usage is not exposed by the current connector workflow. No fictitious usage estimate recorded.
 
 Human checks still needed: play all nights end-to-end, confirm settings survive a browser reload, listen to generated audio, measure native-GPU 1280×720 FPS. These are not claimed as completed.
+
+---
+
+# Phase 3 — Change Request TICKET-03 (2026-11-20)
+
+AI tool: ChatGPT GPT-6 and Bash 2.0 on user's Windows development machine.
+
+Changes: read v1.2 ticket; preserve existing Phase 2 commit/history and graphics fixes; introduce deterministic 1/60-unit fuel, fade/refuel/relight, shade drain, threshold safe-zone behavior, capacity increments, dawn victory and revised scoring. Added 19 new tests rather than skipping tests. Updated four earlier Phase 2 expectations explicitly superseded by TICKET-03: contract version, scoring, starting prelit win and final-tick scoring/reason.
+
+UI: fuel bar, low-fuel flicker, deflated/torn lantern skin, persistent accessible palette, dynamic carrying HUD, revised objective and alerts.
+
+Observed results: 41/41 tests passed, production Vite build passed (nonblocking chunk-size warning), CLI v1.2 verifier passed across all nights and six new scenarios, 18,000-tick Night 3 benchmark approximately 184ms on Windows/Node24, and actual Chrome software-WebGL screenshots captured for lantern fuel levels.
+
+Mistake detected by Chrome screenshot: renderer originally read `l.fuel` from the internal game object, which actually stores `l.fuelUnits`. This produced black empty gauges and a possible nearby-lantern HUD error. Corrected to divide `fuelUnits` by 60 and re-rendered evidence.
+
+A test harness initially expected 21,600 steps from old Night 3 duration; updated to 18,000 steps per v1.2. Regression tests changed only when directly superseded by ticket. All actual remaining results are recorded; no fabricated hidden-test or FPS claims.
+
+Token usage and pricing are not exposed by the connector workflow; exact figures cannot be confirmed.
+
+Human verification outstanding: play all three nights end-to-end, verify setting restoration after browser reload, measure native-GPU FPS at 1280×720, and inspect mouse/keyboard feel.

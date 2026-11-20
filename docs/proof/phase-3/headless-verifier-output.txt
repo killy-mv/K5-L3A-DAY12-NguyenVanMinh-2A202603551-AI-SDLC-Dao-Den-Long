@@ -1,0 +1,16 @@
+PASS Night 1: exact map, deterministic JSONL; 94ms
+PASS Night 2: exact map, deterministic JSONL; 95ms
+PASS Night 3: exact map, deterministic JSONL; 96ms
+PASS scenario dash -> dash
+PASS scenario pause -> paused
+PASS scenario charm -> charm_picked
+PASS scenario drifter -> drifter_steal
+PASS scenario lantern -> lantern_lit
+PASS Phase3 refuel: refuel + deterministic JSONL
+PASS Phase3 relight: lantern_lit + deterministic JSONL
+PASS Phase3 drain: fuel_drain + deterministic JSONL
+PASS Phase3 out: lantern_out + deterministic JSONL
+PASS Phase3 dawn-won: game_over + deterministic JSONL
+PASS Phase3 dawn-lost: game_over + deterministic JSONL
+PASS performance: 18,000 ticks in 165ms (<=30000ms)
+PASS v1.2 verification harness

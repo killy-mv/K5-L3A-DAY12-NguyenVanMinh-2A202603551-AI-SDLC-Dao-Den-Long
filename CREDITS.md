@@ -10,3 +10,8 @@
 - Three.js low-poly island designs, map props, shade/drifter/charm geometry, dialogs, HUD and procedural sound synthesizer: original implementation created with ChatGPT GPT-6 assistance.
 - Ambient background sound is a generated combination of simple sine waves; no third-party soundtrack.
 - No additional external fonts, music, meshes, sprites or pictures were used.
+
+## Phase 3
+
+- Fuel bars, torn and deflated lantern visuals, warning indicators, accessible palette and revised interface: original code produced for TICKET-03 with ChatGPT assistance.
+- No additional third-party media, music or font files introduced.

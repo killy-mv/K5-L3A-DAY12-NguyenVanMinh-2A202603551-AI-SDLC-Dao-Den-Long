@@ -1,15 +1,14 @@
-# Phase 2 assumptions and deviations — Ticket-02, Contract v1.1
+# Current assumptions — Phase 3, Contract v1.2
 
-The numeric constants, maps, timings, event names, and tick order are taken from Ticket-02, NOT inferred from Phase 1. The former v1.0 assumptions have been preserved in `docs/notes/phase-1-assumptions.md` and Git tag `phase-1`.
+TICKET-03 is the current authoritative source. See ADR-0003 for design reasoning and CHANGELOG.md for superseded behavior. Phase 1 and Phase 2 assumptions are archived as `phase-1-assumptions.md` and `phase-2-assumptions.md` respectively.
 
-- Every 1/60s gameplay step is deterministic. `tick` counts all steps including paused; `sim_tick` counts only active gameplay.
-- `score.per_mote=10` means 10 points per mote **deposited**, not picked up. `per_lantern=100` when lit, `per_stun=5` per pulse hit.
-- `shade_speed=4` is standard for Nights 1 and 2, with special Night 3 speed of 4.5m/s in MAPS[3].
-- v1.1 palette and entity limits are enforced in the pure core where gameplay-facing. Decorative Three.js meshes/sounds do not affect gameplay state or headless output.
-- Landing collision chooses the highest valid surface at or below Mây's feet, avoiding teleportation through upper platforms.
-- A falling player is detected when feet Y < -10 regardless of lateral island position, and cannot be repeatedly penalized during the same recovery.
-- User-selectable audio volume and pointer sensitivity are local display settings, omitted from headless simulation.
-- Default generated motes use the map's valid spawn points. User scenario with explicit motes/shades replaces that initial list; future spawning depends on random flags.
-- `night_start` is emitted on the first active gameplay step (not when assembling a scenario), preserving the prior contract's no-event rule during scenario setup.
-- A pulse target is decided from the 3D distance to the pulse center (player feet +0.8 Y), with a fixed 15-tick horizontal push.
-- Full manual end-to-end play and native GPU frame rate are not yet evidenced; only automated logic and software WebGL smoke test were performed.
+- All lamp fuel and drain calculations use integer units (60 per fuel). Round to one decimal only in JSONL/renderer.
+- Headless simulation order follows previous 60 Hz phases: tick input, timer/fuel decay/drain, movement/pickup/deposit/safety/pulse, shades/drifters, hits/spawns, final death/dawn checks. Pause stops gameplay tick; it does not decrement fuel.
+- Fuel below 30 is not protected; exactly 30 is protected until the next active tick can reduce it.
+- Drain already active at the start of the step consumes 5 units in step 2, in addition to 1 natural decay. A shade entering drain during shade motion starts draining on the *next* gameplay step.
+- For scenario lanterns with `lit:true` and no `fuel`, initialize exactly 100; scenario setup emits no score/events, and scenario-lit lamps do not increase `successful_lights`.
+- `fuel=0` immediately extinguishes the lantern on the next active tick, and may be an intentional test scenario.
+- A lantern initially full may be eligible for refuel in the first gameplay tick because step-2 decay occurs before step-5 interactions. This follows the contract's explicit step order.
+- `score.per_mote=5` is awarded on **deposit/refuel**, not pickup. Every pulse against a `drain` shade awards total +15, not +5+15.
+- A world-space fuel gauge only displays core state; accessibility setting and all stylistic additions have no effects on JSONL.
+- Performance benchmarks use an unthrottled local Node CLI and should not be confused with rendering FPS.
