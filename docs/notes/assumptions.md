@@ -1,15 +1,15 @@
-# Phase 1 — PRD-0 assumptions (2026-11-20)
+# Phase 2 assumptions and deviations — Ticket-02, Contract v1.1
 
-The PRD leaves many numeric thresholds unspecified. The following values are design decisions, all disclosed in game.contract.json: movement 6 m/s; capacity 8; lantern requires 5 motes; interact distance 3 m; pickup 1.2 m; pulse consumes 2 motes and affects shades within 5 m; night duration 300 s; 3 flames; invulnerability 1.5 s; 50% of carried motes dropped on a hit (rounded down); stun 2.5 s; push 2.8 m; pulse cooldown 1.5 s; lit lantern safe radius 4 m; shade movement 2.2 m/s, hit radius 1 m; falling disabled (island edge blocks movement).
+The numeric constants, maps, timings, event names, and tick order are taken from Ticket-02, NOT inferred from Phase 1. The former v1.0 assumptions have been preserved in `docs/notes/phase-1-assumptions.md` and Git tag `phase-1`.
 
-- All distance checks use horizontal XZ distances and are inclusive.
-- A lantern lights once 5 motes have been deposited; partial deposits persist. Interact is triggered on a false-to-true edge.
-- Pulse is triggered on an input edge, spends motes only if affordable and off cooldown, and only stuns active shades within range.
-- A hit removes one flame. Dropped motes return to the map near the player (unless zero). After loss of all flames, game ends immediately.
-- Win after all 5 lanterns are lit; loss on zero flames or dawn. On win add floor(time remaining in seconds)*2 and remaining flames*50 as end bonus.
-- The island has a solid invisible boundary at radius 24 m; jumping does not change planar pickup / interaction distances.
-- Pulse cost and the lantern cost use the same carried-mote resource; render-only embellishments don't affect headless.
-- Night 1 is the only phase-1 stage. Scene and shader decorations are not gameplay entities.
-- Tick events are emitted before the optional snapshot at the resulting tick. Snapshot at tick 0 is emitted before any input.
-- A scenario's time_left_s overrides the normal initial timer and decreases by 1/60 per executed step.
-- All generated placements and identifiers are seeded; no ambient randomness in core logic.
+- Every 1/60s gameplay step is deterministic. `tick` counts all steps including paused; `sim_tick` counts only active gameplay.
+- `score.per_mote=10` means 10 points per mote **deposited**, not picked up. `per_lantern=100` when lit, `per_stun=5` per pulse hit.
+- `shade_speed=4` is standard for Nights 1 and 2, with special Night 3 speed of 4.5m/s in MAPS[3].
+- v1.1 palette and entity limits are enforced in the pure core where gameplay-facing. Decorative Three.js meshes/sounds do not affect gameplay state or headless output.
+- Landing collision chooses the highest valid surface at or below Mây's feet, avoiding teleportation through upper platforms.
+- A falling player is detected when feet Y < -10 regardless of lateral island position, and cannot be repeatedly penalized during the same recovery.
+- User-selectable audio volume and pointer sensitivity are local display settings, omitted from headless simulation.
+- Default generated motes use the map's valid spawn points. User scenario with explicit motes/shades replaces that initial list; future spawning depends on random flags.
+- `night_start` is emitted on the first active gameplay step (not when assembling a scenario), preserving the prior contract's no-event rule during scenario setup.
+- A pulse target is decided from the 3D distance to the pulse center (player feet +0.8 Y), with a fixed 15-tick horizontal push.
+- Full manual end-to-end play and native GPU frame rate are not yet evidenced; only automated logic and software WebGL smoke test were performed.

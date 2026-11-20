@@ -10,3 +10,13 @@
 - Don't forge test results or alter generated evidence. If a test fails, fix it or document the gap.
 - Don't commit secrets, .env or binaries without provenance. All assets currently procedurally generated.
 - On changing core logic, re-run unit, scenario, determinism and build checks.
+
+## Phase 2 — Ticket-02 / Contract v1.1
+
+- Pure deterministic engine: `web/src/core/game-v11.js` (re-export from `game.js`). Do not import DOM or Three.js into game logic.
+- Browser UI entrypoint: `web/src/main-v11.ts`. Keep all visual additions outside headless simulation.
+- Standard numeric tuning in `game.contract.json` must exactly match `TUNING`; Night 3's special 4.5m/s shade speed is held in `MAPS[3]`.
+- Before marking a change done, run `npm --prefix web test`, `npm --prefix web run build`, and `node scripts/verify.mjs` at root. Do not commit red tests.
+- New test scenarios: `web/tests/scenarios/phase-2`. Evidence: `docs/proof/phase-2`. Acceptance criteria: `docs/spec/phase-2.md`.
+- Git history/tag from Phase 1 must remain intact. Never silently disable failed regression tests; explain any revised expectations from Ticket-02.
+- Review source, tests and generated evidence separately. Do not claim the 30 FPS requirement has been measured using a software-rendering screenshot.

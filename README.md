@@ -1,14 +1,18 @@
-# Đảo Đèn Lồng — Đêm 1 · Day 12 AI SDLC
+# Đảo Đèn Lồng — AI SDLC · 3 Đêm (Phase 2)
 
-**Demo video:** Chưa quay — sẽ bổ sung đường dẫn công khai khi hoàn tất kiểm thử và phát hành.
+**Demo video:** Chưa quay; sẽ gắn link video MP4 công khai tại đây trước bản phát hành cuối cùng.
 
-Game 3D low-poly cổ tích: điều khiển Mây, nhặt đom đóm, thắp 5 Đèn Lồng Lớn, tránh Bóng Mực và tỏa sáng để xua chúng đi. Thắp hết đèn thì thắng, mất hết máu hoặc hết đêm thì thua. Nhấn chơi lại sau khi kết thúc.
+Game 3D cổ tích, góc nhìn thứ ba, viết bằng **Three.js + TypeScript + Vite**. Mây phải mang đom đóm tới các Đèn Lồng Lớn, xua Bóng Mực và sống sót qua ba đêm:
 
-**Công nghệ:** Three.js + TypeScript + Vite cho browser; Node.js ES modules cho mô phỏng headless 60 tick/giây. Engine gameplay dùng chung trong `web/src/core/game.js`, không phụ thuộc renderer.
+- **Đêm 1 — Đảo Bến:** đảo tròn bán kính 40 m, 5 đèn.
+- **Đêm 2 — Đảo Cau:** hai đảo nối bằng cầu tre, bục nhảy, Bùa Gió và Gió Lạc, 6 đèn.
+- **Đêm 3 — Đảo Chuông:** ba tầng, dốc, bục nhảy, tháp chuông và gió mạnh, 7 đèn.
 
-## Chạy game (macOS/Linux/Windows, tối đa 3 lệnh)
+**Phase 2:** Contract v1.1 và Ticket-02 chuẩn hóa toàn bộ thông số, thay thế các con số tự chọn ở Phase 1. Bản Phase 1 vẫn được bảo lưu tại Git tag `phase-1`.
 
-Yêu cầu: Node.js 24+ và npm.
+## Cài đặt và chơi (3 lệnh)
+
+Yêu cầu: Node.js 24+ và npm; bản web dùng được trên macOS, Linux hoặc Windows.
 
 ```bash
 npm --prefix web ci
@@ -16,65 +20,77 @@ npm --prefix web run build
 npm --prefix web run dev
 ```
 
-Mở địa chỉ Vite hiển thị trên terminal (mặc định http://localhost:5173). Build web tĩnh ở `web/dist/` để triển khai trên hosting web; không cần Docker hoặc GPU để chạy headless.
+Mở địa chỉ Vite trả về (thường là `http://localhost:5173/`). Bản web tĩnh để phát hành được sinh trong `web/dist/` sau build.
 
 ## Điều khiển
 
-| Phím | Hành động |
+| Phím hoặc chuột | Hành động |
 |---|---|
-| W A S D / phím mũi tên | Đi lại, tương đối với hướng camera |
-| Kéo chuột | Xoay camera |
+| WASD hoặc mũi tên | Chạy theo góc nhìn camera |
+| Di chuyển chuột (không cần giữ nút) | Xoay camera ngang |
 | Cuộn chuột | Thu/phóng camera |
 | Space | Nhảy |
-| E | Nạp đom đóm vào Đèn Lồng gần nhất (nhấn mới) |
-| Q | Tỏa sáng, tiêu hao 2 đom đóm (nhấn mới) |
-| R | Chơi lại khi thắng/thua |
+| Shift | Lướt 14m/s trong 0.2s |
+| E | Nạp đom đóm cho một đèn gần nhất |
+| Q | Tỏa Sáng đẩy lùi Bóng Mực và Gió Lạc |
+| Esc hoặc P | Tạm dừng / tiếp tục |
 
-## Cách tính điểm và thông số giả định
+Menu: chọn Bắt đầu → lời giới thiệu Ông Đăng → chơi → thắng để sang Đêm kế tiếp. Thua có thể chơi lại đúng Đêm đó; thắng Đêm 3 sẽ hiện màn hình Bình Minh và tổng điểm. Trong menu tạm dừng có Tiếp tục, Chơi lại, Cài đặt, Về menu. Âm lượng và độ nhạy chuột lưu tại `localStorage`.
 
-- Nhặt mỗi đom đóm: +10 điểm; chứa tối đa 8.
-- Mỗi đèn cần 5 đom đóm để sáng, có thể nạp dần; thắp sáng: +100 điểm.
-- Tỏa sáng trong bán kính 5m: 2 đom đóm, làm choáng Bóng Mực 2.5s, đẩy 2.8m, +25 điểm mỗi con trúng.
-- Trúng Bóng Mực: mất 1 máu; có 1.5s bất tử, đánh rơi 50% lượng đang mang (làm tròn xuống); đèn đã sáng tạo vùng an toàn 4m.
-- Thắng: thêm `floor(số giây còn lại) × 2 + số máu còn lại × 50` điểm.
-- Thua: hết máu hoặc hết 300 giây; không có phạt rơi khỏi đảo, nhân vật bị giới hạn tại mép đảo.
-- Tốc độ Mây: 6m/s, Bóng Mực: 2.2m/s; khoảng cách tương tác 3m, nhặt 1.2m.
-- Các giá trị chính xác đặt tại `game.contract.json`; giải thích giả định: `docs/notes/assumptions.md`.
+## Cách tính điểm (chuẩn hóa)
 
-## Test Contract v1.0 — headless
+- **+10** cho mỗi đom đóm **nạp vào đèn** (nhặt từ mặt đất không cộng điểm).
+- **+100** khi thắp sáng hoàn toàn một đèn.
+- **+5** mỗi lần Tỏa Sáng trúng một Bóng Mực, kể cả khi đang choáng.
+- **Điểm thưởng thắng Đêm** = `floor(giây còn lại) × 2 + 50 × số Ngọn Lửa còn lại`.
+- Tổng điểm cuối game = tổng điểm của các Đêm đã thắng.
 
-`game.contract.json` nằm ở thư mục gốc, với `build_cmd`, `run_cmd`, `headless_cmd`, `tuning` chính xác.
+Giới hạn mang 10 đom đóm; mỗi đèn cần 10. Tỏa Sáng tốn 3 đom đóm, bán kính 5m, hồi chiêu 3 giây. Lướt hồi chiêu 1.5s, Bùa Gió cho chạy 7.2m/s và lướt không hồi chiêu 10 giây. Bị đánh mất một Ngọn Lửa (có 3), đom đóm đánh rơi; hết máu hoặc hết thời gian là thua.
+
+Đầy đủ thông số tiêu chuẩn nằm trong `game.contract.json` và `web/src/core/game-v11.js`. Riêng Bóng Mực ở Đêm 3 chạy 4.5m/s thay vì 4m/s.
+
+## Headless / Test Contract v1.1
+
+Game mô phỏng **60 tick/giây cố định** và có thể chạy không GPU/không giao diện với Node.js. Core gameplay được dùng chung bởi renderer Three.js và CLI, không chứa DOM hay WebGL.
 
 ```bash
-node web/src/headless.mjs --seed 42 --night 1 --ticks 120 --out output.jsonl
-node web/src/headless.mjs --seed 42 --night 1 --scenario web/tests/scenarios/pickup.json --inputs web/tests/scenarios/move.json --ticks 120 --out output.jsonl --snapshot-every 10
-npm --prefix web test
+node web/src/headless.mjs --seed 42 --night 1 --ticks 600 --out night1.jsonl --snapshot-every 10
+node web/src/headless.mjs --seed 42 --night 2 --scenario web/tests/scenarios/phase-2/charm-scenario.json --inputs web/tests/scenarios/phase-2/charm-inputs.json --ticks 120 --out night2.jsonl
+node web/src/headless.mjs --seed 42 --night 3 --ticks 21600 --out night3.jsonl
 ```
 
-- Tick 0 là trạng thái ngay sau dựng scenario, trước input; frame tick k tác động lên trạng thái k+1.
-- Mỗi bước chính xác 1/60s; khi thắng/thua chương trình dừng sớm.
-- Đầu ra JSONL có snapshot định kỳ, event và dòng `end` bắt buộc.
-- Tham số/file scenario/input sai: thoát mã 2 với thông báo stderr; chạy thành công mã 0.
-- Input giữ giá trị qua frame, nút kích hoạt cạnh false→true, di chuyển theo yaw với normalize; cùng seed, scenario, inputs cho JSONL giống hệt.
-- Chạy `node scripts/verify.mjs` để kiểm tra tính tất định đầu-cuối (trong thư mục gốc).
-- Bằng chứng từng yêu cầu: `docs/proof/phase-1/`.
+- `--night` nhận 1, 2, 3. File `--scenario`, `--inputs` tùy chọn; `--snapshot-every` mặc định 10.
+- Kết quả `.jsonl` gồm `snapshot`, `event` và dòng cuối `end`.
+- Snapshot tick 0 ngay sau dựng scenario, trước input; input tick k tác động trạng thái k+1; khi tạm dừng `tick` tăng còn `sim_tick` đứng yên.
+- Với seed/scenario/inputs giống nhau, đầu ra giống nhau từng byte.
+- Thoát mã 0 khi thành công, 2 nếu tham số / file JSON input sai.
+- `game.contract.json` ở gốc có lệnh `build_cmd`, `run_cmd`, `headless_cmd` và `tuning` chính xác.
+
+## Kiểm thử và bằng chứng
+
+Chạy từ thư mục gốc:
+
+```bash
+npm --prefix web test
+npm --prefix web run build
+node scripts/verify.mjs
+```
+
+Bằng chứng Phase 2: `docs/proof/phase-2/`, bao gồm JSONL từ các scenario mới, ảnh Chrome thực tế Đêm 2–3, và báo cáo kiểm chứng. Danh sách tiêu chí nghiệm thu và trạng thái từng phần: `docs/spec/phase-2.md`.
+
+Tại lần kiểm tra đã ghi nhận: 22/22 test đạt; TypeScript/Vite build thành công; ba Đêm cho output tất định; 21.600 tick Đêm 3 hoàn thành trong khoảng 160ms trên Windows/Node 24. **Chưa kiểm chứng end-to-end cả 3 đêm bằng thao tác người chơi và chưa đo được FPS bằng GPU vật lý.** Chỉ chứng minh browser render qua Chrome software WebGL, không giả định đó là benchmark FPS thực tế.
+
+AI harness: `AGENTS.md`, `scripts/verify.mjs`, `.github/workflows/test.yml`. Ghi chép các giả định và nhật ký AI: `docs/notes/`; tài sản/giấy phép: `CREDITS.md` và `LICENSE`.
 
 ## Sáng tạo của tôi
 
-- Mây được tạo từ hình học low-poly, đội nón lá và mang một đèn lồng nhỏ.
-- Đảo nổi trên biển mây với lối đi, rừng cây cách điệu, đèn đổi màu và chiếu sáng vàng cam khi được thắp.
-- Đom đóm lơ lửng với quầng sáng, Bóng Mực tím đen có đôi mắt sáng, vòng sáng khi tỏa năng lượng, HUD và thông báo trực quan.
-- Toàn bộ hiệu ứng trên thuộc renderer và **không tạo thực thể headless bổ sung**; kiểm tra logic riêng bằng `npm --prefix web test`.
+- Mây low-poly đội nón lá có đèn lồng nhỏ treo trên nón.
+- Ba hòn đảo có phong cách cổ tích, đom đóm phát quầng sáng, đèn chuyển sang vàng cam khi thắp, Bóng Mực tím đen.
+- HUD có gợi ý đèn, kỹ năng, thông báo và menu Ông Đăng; nhạc nền và hiệu ứng âm thanh được tổng hợp bằng Web Audio không cần file âm thanh ngoài.
+- Tất cả bổ sung đồ họa, âm thanh, giao diện không đưa thêm thực thể vào mô phỏng headless, không thay đổi Test Contract.
 
-## Quy trình AI SDLC và bằng chứng
-
-- AI harness: `AGENTS.md`, test tự động, `scripts/verify.mjs`, GitHub Actions.
-- Ghi giả định: `docs/notes/assumptions.md`; nhật ký dùng AI: `docs/notes/ai-log.md`.
-- Bằng chứng: `docs/proof/phase-1/README.md`; nguồn asset và giấy phép: `CREDITS.md` và `LICENSE`.
-- Chưa tự gắn tag `phase-1` hoặc tạo Release; chỉ tag sau khi nghiệm thu.
-
-## Tài liệu bài lab gốc
+## Các tài liệu gốc của lab
 
 [GUIDE.md](GUIDE.md) · [CHECKPOINTS.md](CHECKPOINTS.md) · [SUBMISSION.md](SUBMISSION.md) · [RUBRIC.md](RUBRIC.md) · [RULES.md](RULES.md)
 
-Yêu cầu các phase mới: [Lab Board](https://claude.ai/artifact/Q1RYyv1dxjUczzCbd2ZnoW). Mỗi phase cần tag riêng và bằng chứng đúng với commit đó. Repo cá nhân phải public khi nộp.
+Lab board: [Đảo Đèn Lồng](https://claude.ai/artifact/Q1RYyv1dxjUczzCbd2ZnoW). Sau Phase 2 cần tag `phase-2`; các ticket sau có thể đổi luật chơi và buộc chạy lại regression.
