@@ -1,7 +1,15 @@
 import * as THREE from 'three';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {Game,MAPS,TUNING,DT} from './core/game.js';
 import './style-v12.css';
+import {makeBenchmark} from './bench-mode.js';
+import {fetchBoard,saveBoard,type LeaderEntry} from './leaderboard-ui.js';
 const app=document.querySelector<HTMLDivElement>('#app')!;
+const benchOptions=new URLSearchParams(location.search);
+const isBenchmark=benchOptions.has('benchmark');
+const benchSeed=Number(benchOptions.get('seed')??42);
+const benchDuration=Number(benchOptions.get('duration')??30);
+let activeBench:ReturnType<typeof makeBenchmark>|null=null;
 app.innerHTML=`
 <div class="hud">
  <div class="hudTop">
@@ -10,9 +18,12 @@ app.innerHTML=`
   <div class="group" style="text-align:right"><div class="micro" id="lamps">🏮 0/5 Đèn</div><div class="large" id="score">★ 0</div><div class="dim" id="total">Tổng 0</div></div>
  </div>
  <div id="windAlert"></div>
- <div id="toast"></div><div id="pointer"></div>
+ <div id="toast" role="status"></div><div id="pointer"></div>
+  <div id="threatArrow" aria-live="polite"></div>
+  <div id="lowFuel" aria-live="polite"></div>
+  <div id="lastTen" aria-live="assertive"></div>
  <div class="hudBottom">
-  <div class="group controls"><kbd>W A S D</kbd> Đi · <kbd>Space</kbd> Nhảy<br><kbd>Shift</kbd> Lướt · <kbd>E</kbd> Nạp · <kbd>Q</kbd> Tỏa sáng<br><kbd>Mouse</kbd> Xoay camera · <kbd>Esc</kbd> Tạm dừng</div>
+  <div class="group controls" id="controlsText">WASD: Di chuyển · Space: Nhảy · Shift: Lướt · E: Nạp · Q: Tỏa sáng · Esc: Tạm dừng</div>
   <div class="group prompts"><div id="hint"></div><div class="micro">Đom đóm <span id="count">0/10</span></div><div class="moteSlots" id="slots"></div></div>
   <div class="group" style="text-align:right"><div class="micro">Kỹ năng</div><div class="dim" id="dash">Lướt: sẵn sàng</div><div class="dim" id="pulse">Tỏa sáng: sẵn sàng</div></div>
  </div>
@@ -27,25 +38,71 @@ app.innerHTML=`
   <div class="setting"><span>Âm lượng</span><input id="volume" type="range" min="0" max="100" value="35"></div>
   <div class="setting"><span>Độ nhạy chuột</span><input id="sensitivity" type="range" min="1" max="100" value="40"></div>
   <div class="setting"><label for="colorblind">Bảng màu dễ phân biệt</label><input id="colorblind" type="checkbox" style="width:22px;height:22px"></div>
+  <div class="setting"><label for="reducedMotion">Giảm chuyển động</label><input id="reducedMotion" type="checkbox"></div>
+  <div class="setting"><label for="largeText">Chữ lớn (×1.25)</label><input id="largeText" type="checkbox"></div>
+  <div class="micro">Gán phím điều khiển</div><div id="keyBindings"></div>
+  <div id="bindStatus" role="status"></div>
+  <button id="resetBindings" class="secondary">Khôi phục phím mặc định</button>
   <button id="closeSettings" class="secondary">Đóng cài đặt</button>
  </div>
+ <div id="boardList"></div>
+ <div id="saveScore" class="hidden"><label for="scoreName">Tên (3–12 ký tự A–Z, 0–9, _)</label>
+  <input id="scoreName" maxlength="12" placeholder="NguoiChoi" />
+  <button id="saveEntry">Lưu điểm</button><div id="saveMessage" role="status"></div></div>
 </div></div>`;
 const el=(id:string)=>document.getElementById(id)!;
-let settings={volume:.35,sensitivity:.004,colorblind:false};
+type KeyAction='forward'|'backward'|'left'|'right'|'jump'|'dash'|'interact'|'pulse'|'pause';
+const defaultKeys:Record<KeyAction,string>={forward:'w',backward:'s',left:'a',right:'d',jump:' ',dash:'shift',interact:'e',pulse:'q',pause:'escape'};
+const actionNames:Record<KeyAction,string>={forward:'Đi tới',backward:'Đi lùi',left:'Sang trái',right:'Sang phải',jump:'Nhảy',dash:'Lướt',interact:'Tương tác',pulse:'Tỏa sáng',pause:'Tạm dừng'};
+const allActions=Object.keys(defaultKeys) as KeyAction[];
+let settings={volume:.35,sensitivity:.004,colorblind:false,reducedMotion:false,largeText:false,bindings:{...defaultKeys}};
 try{settings={...settings,...JSON.parse(localStorage.getItem('ddl-settings')||'{}')}}catch{}
+settings.bindings={...defaultKeys,...settings.bindings};
+if(new Set(Object.values(settings.bindings)).size!==allActions.length)settings.bindings={...defaultKeys};
 // Optional visual-only check; does not alter headless state or persist preference.
 if(new URLSearchParams(location.search).has('colorblind'))settings.colorblind=true;
 (el('volume') as HTMLInputElement).value=String(Math.round(settings.volume*100));
 (el('sensitivity') as HTMLInputElement).value=String(Math.round(settings.sensitivity*10000));
 (el('colorblind') as HTMLInputElement).checked=settings.colorblind;
+(el('reducedMotion') as HTMLInputElement).checked=settings.reducedMotion;
+(el('largeText') as HTMLInputElement).checked=settings.largeText;
 const saveSettings=()=>{settings.volume=Number((el('volume') as HTMLInputElement).value)/100;
  settings.sensitivity=Number((el('sensitivity') as HTMLInputElement).value)/10000;
  settings.colorblind=(el('colorblind') as HTMLInputElement).checked;
+ settings.reducedMotion=(el('reducedMotion') as HTMLInputElement).checked;
+ settings.largeText=(el('largeText') as HTMLInputElement).checked;
  applyColorMode();
  localStorage.setItem('ddl-settings',JSON.stringify(settings));};
 el('volume').addEventListener('input',saveSettings);
 el('sensitivity').addEventListener('input',saveSettings);
 el('colorblind').addEventListener('change',saveSettings);
+el('reducedMotion').addEventListener('change',saveSettings);
+el('largeText').addEventListener('change',saveSettings);
+let rebinding:KeyAction|null=null;
+function renderKeyBindings(){
+ const root=el('keyBindings');root.innerHTML='';
+ for(const action of allActions){
+  const line=document.createElement('div');line.className='setting';
+  const label=document.createElement('span');label.textContent=actionNames[action];
+  const button=document.createElement('button');button.className='secondary';
+  button.textContent=settings.bindings[action]===' '?'Space':settings.bindings[action];
+  button.addEventListener('click',()=>{
+   rebinding=action;el('bindStatus').textContent='Nhấn phím mới cho '+actionNames[action];
+  });
+  line.append(label,button);root.appendChild(line);
+ }
+ const display=(a:KeyAction)=>settings.bindings[a]===' '?'Space':settings.bindings[a].toUpperCase();
+ el('controlsText').textContent=
+  [display('forward'),display('left'),display('backward'),display('right')].join('/')+
+  ' Di chuyển · '+display('jump')+' Nhảy · '+display('dash')+' Lướt · '+
+  display('interact')+' Nạp · '+display('pulse')+' Tỏa sáng · '+display('pause')+' Tạm dừng';
+}
+el('resetBindings').addEventListener('click',()=>{
+ settings.bindings={...defaultKeys};rebinding=null;
+ el('bindStatus').textContent='Đã khôi phục phím mặc định';
+ renderKeyBindings();saveSettings();
+});
+renderKeyBindings();
 el('settings').addEventListener('click',()=>el('settingsPanel').classList.remove('hidden'));
 el('closeSettings').addEventListener('click',()=>el('settingsPanel').classList.add('hidden'));
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
@@ -100,9 +157,11 @@ function applyColorMode(){
  eyes.color.set(on?'#00B3FF':'#7A3CFF');
  shadeOutlines.color.set(on?'#00B3FF':'#7A3CFF');
  document.body.classList.toggle('colorblind',on);
+ document.body.classList.toggle('reduce-motion',settings.reducedMotion);
+ document.body.classList.toggle('large-text',settings.largeText);
 }
 applyColorMode();
-let game=new Game({night:1,seed:2026}),night=1,total=0,mode:'menu'|'intro'|'playing'|'pause'|'won'|'lost'|'dawn'='menu';
+let game=new Game({night:1,seed:2026}),night=1,total=0,mode:'menu'|'intro'|'playing'|'pause'|'won'|'lost'|'dawn'|'bench'='menu';
 function clearGroup(g:THREE.Group){while(g.children.length)g.remove(g.children[0]);}
 function addIsland(x:number,z:number,r:number,y=0){
  // Turf must sit above the base top rather than on the same plane (z-fighting).
@@ -199,12 +258,28 @@ function makeMote(){
  const spr=new THREE.Sprite(glowSpriteMaterial);spr.scale.set(1.5,1.5,1);g.add(spr);
  scene.add(g);return g;
 }
+// Merge the two eyes and four tentacles once for *both* normal gameplay and
+// benchmark; visual meshes remain identical, but draw calls per shade halve.
+const shadeBodyGeometry=new THREE.SphereGeometry(.68,12,10);
+const shadeOutlineGeometry=new THREE.SphereGeometry(.715,12,10);
+const shadeEyeGeometry=mergeGeometries([-1,1].map(side=>{
+ const geo=new THREE.SphereGeometry(.12,8,6);
+ geo.translate(side*.23,.15,-.52);return geo;
+}))!;
+const shadeTentacleGeometry=mergeGeometries(Array.from({length:4},(_,i)=>{
+ const geo=new THREE.ConeGeometry(.15,.7,6);
+ geo.translate((i-1.5)*.27,-.51,.1);return geo;
+}))!;
 function makeShade(){
- const g=new THREE.Group();g.add(create(new THREE.SphereGeometry(.68,12,10),shadeMaterial.clone()));
- g.add(create(new THREE.SphereGeometry(.12,8,6),eyes,-.23,.15,-.52));
- g.add(create(new THREE.SphereGeometry(.12,8,6),eyes,.23,.15,-.52));
- g.add(create(new THREE.SphereGeometry(.715,12,10),shadeOutlines));
- for(let i=0;i<4;i++)g.add(create(new THREE.ConeGeometry(.15,.7,6),shadeMaterial,(i-1.5)*.27,-.51,.1));
+ const g=new THREE.Group();
+ const body=create(shadeBodyGeometry,shadeMaterial.clone());
+ g.add(body);
+ const eyeMesh=create(shadeEyeGeometry,eyes);
+ eyeMesh.castShadow=false;g.add(eyeMesh);
+ const outlineMesh=create(shadeOutlineGeometry,shadeOutlines);
+ outlineMesh.castShadow=false;g.add(outlineMesh);
+ const tentacles=create(shadeTentacleGeometry,shadeMaterial);
+ tentacles.castShadow=false;g.add(tentacles);
  scene.add(g);return g;
 }
 function makeDrifter(){
@@ -221,7 +296,7 @@ function sync(){
   const obj=lanterns.get(l.id);if(!obj)continue;
   obj.group.position.set(l.pos[0],l.pos[1],l.pos[2]);
   const fuel=l.fuelUnits/60;
-  const low=l.lit&&fuel<30,blink=low?(Math.floor(game.simTick/30)%2===0?1:.35):1;
+  const low=l.lit&&fuel<30,blink=low&&!settings.reducedMotion?(Math.floor(game.simTick/30)%2===0?1:.35):1;
   obj.light.intensity=l.lit?10*blink:0;
   const mat=obj.lamp.material as THREE.MeshStandardMaterial;
   mat.color.set(l.lit?'#FFB347':'#5B5F6E');
@@ -322,6 +397,7 @@ function sound(freq=450,duration=.12){
 }
 el('volume').addEventListener('input',()=>{if(ambientGain)ambientGain.gain.value=.012*settings.volume});
 let toastUntil=0;
+let lastSpawnId:string|null=null,lastSpawnNoticeUntil=0;
 function toast(message:string){
  el('toast').textContent=message;el('toast').style.opacity='1';toastUntil=performance.now()+1700;
 }
@@ -341,12 +417,63 @@ function dialog(kicker:string,title:string,message:string,actions:Action[]){
  settingsBtn.addEventListener('click',()=>el('settingsPanel').classList.remove('hidden'));
  root.appendChild(settingsBtn);
  el('settingsPanel').classList.add('hidden');
+ el('saveScore').classList.add('hidden');
+ el('boardList').innerHTML='';
+}
+let entrySaved=false;
+let sessionSeed=2027;
+async function showBoard(){
+ mode='menu';
+ dialog('10 người dẫn đầu','Bảng xếp hạng','Điểm cao nhất được giữ lại trên máy này.',
+  [{text:'Về menu',run:menu}]);
+ const list=el('boardList');list.innerHTML='';
+ const entries=await fetchBoard();
+ if(!entries.length){list.textContent='Chưa có điểm được lưu.';return;}
+ const table=document.createElement('table');
+ table.className='leaderboardTable';
+ const header=document.createElement('tr');
+ for(const name of ['#','Tên','Điểm','Đêm thắng','Ngày']){
+  const cell=document.createElement('th');cell.textContent=name;header.appendChild(cell);
+ }
+ table.appendChild(header);
+ entries.forEach((e,i)=>{
+  const row=document.createElement('tr');
+  for(const v of [String(i+1),e.name,String(e.score),String(e.nights_won),new Date(e.achieved_at).toLocaleDateString('vi-VN')]){
+   const cell=document.createElement('td');cell.textContent=v;row.appendChild(cell);
+  }
+  table.appendChild(row);
+ });
+ list.appendChild(table);
+}
+function showSave(score:number,nightsWon:number){
+ entrySaved=false;
+ el('saveScore').classList.remove('hidden');
+ el('saveMessage').textContent='';
+ (el('scoreName') as HTMLInputElement).value='';
+ el('saveEntry').onclick=async()=>{
+  if(entrySaved)return;
+  const name=(el('scoreName') as HTMLInputElement).value.trim();
+  if(!/^[A-Za-z0-9_]{3,12}$/.test(name)){
+   el('saveMessage').textContent='⚠ Tên phải có 3–12 ký tự A–Z, 0–9 hoặc _';return;
+  }
+  const entry:LeaderEntry={name,score,nights_won:nightsWon,
+   achieved_at:new Date().toISOString(),seed:sessionSeed};
+  try{
+   const result=await saveBoard(entry);
+   entrySaved=true;
+   el('saveMessage').textContent=result.onDisk?
+    'Đã lưu điểm trên đĩa!':'Đã lưu trong trình duyệt (dùng bản phát hành để xuất ra file).';
+  }catch(e){
+   el('saveMessage').textContent='⚠ '+(e as Error).message;
+  }
+ };
 }
 function menu(){
  mode='menu';total=0;night=1;
  dialog('Màn hình chính','Đảo Đèn Lồng',
  'Ông Đăng: “Đêm nay biển mây đang hóa đen. Mây ơi, con có thể thắp lại ánh sáng của ba hòn đảo không?”',
- [{text:'Bắt đầu hành trình',run:()=>intro(1)}]);
+ [{text:'Bắt đầu hành trình',run:()=>intro(1)},
+  {text:'Bảng xếp hạng',run:()=>{void showBoard()},secondary:true}]);
 }
 function intro(n:number){
  mode='intro';night=n;
@@ -360,6 +487,7 @@ function intro(n:number){
 }
 function begin(n:number){
  night=n;
+ if(n===1&&total===0)sessionSeed=2027;
  const preview=new URLSearchParams(location.search).has('visual-proof');
  const visualScenario=preview?{random_motes:false,random_shades:false,random_drifters:false,
   shades:[{id:'S1',pos:[0,1,14],state:'wander'}],
@@ -387,7 +515,8 @@ function result(){
   if(night===3){
    mode='dawn';
    dialog('Kết thúc hành trình','BÌNH MINH','Ba hòn đảo đã sáng lại. Tổng điểm của bạn: '+total,
-    [{text:'Về menu chính',run:menu}]);
+    [{text:'Về menu chính',run:menu},{text:'Bảng xếp hạng',run:()=>{void showBoard()},secondary:true}]);
+    showSave(total,3);
   }else{
    mode='won';
    dialog('Đêm '+night+' hoàn thành','Bình minh trở lại',
@@ -398,7 +527,9 @@ function result(){
   mode='lost';sound(165,.35);
   dialog('Đêm '+night+' kết thúc','Sương đen còn đó',
    'Mây đã cạn Ngọn Lửa hoặc chưa giữ đủ đèn sáng đến bình minh. Hãy thử lại đêm này!',
-   [{text:'Chơi lại Đêm '+night,run:()=>begin(night)},{text:'Về menu',run:menu,secondary:true}]);
+   [{text:'Chơi lại Đêm '+night,run:()=>begin(night)},{text:'Về menu',run:menu,secondary:true},
+    {text:'Bảng xếp hạng',run:()=>{void showBoard()},secondary:true}]);
+   showSave(total,night-1);
  }
 }
 function pauseMenu(){
@@ -416,8 +547,18 @@ const pressed=new Set<string>();
 let camAngle=Math.PI,camPitch=.48,camDistance=14,accumulator=0;
 window.addEventListener('keydown',e=>{
  const key=e.key.toLowerCase();
+ if(rebinding!==null){
+  e.preventDefault();
+  if(Object.entries(settings.bindings).some(([name,v])=>name!==rebinding&&v===key)){
+   el('bindStatus').textContent='⚠ Phím '+(key===' '?'Space':key)+' đã được sử dụng';
+   return;
+  }
+  settings.bindings[rebinding]=key;
+  el('bindStatus').textContent='Đã gán '+actionNames[rebinding]+' = '+(key===' '?'Space':key);
+  rebinding=null;renderKeyBindings();saveSettings();return;
+ }
  if([' ','arrowup','arrowdown','arrowleft','arrowright','shift'].includes(key))e.preventDefault();
- if(key===' '&&mode==='playing'&&!pressed.has(key))sound(525,.08);
+ if(key===settings.bindings.jump&&mode==='playing'&&!pressed.has(key))sound(525,.08);
  pressed.add(key);
 });
 window.addEventListener('keyup',e=>pressed.delete(e.key.toLowerCase()));
@@ -430,8 +571,8 @@ renderer.domElement.addEventListener('wheel',e=>{
  camDistance=Math.max(7,Math.min(25,camDistance+e.deltaY*.013));
 },{passive:true});
 function controls(){
- const right=(pressed.has('a')||pressed.has('arrowleft')?1:0)-(pressed.has('d')||pressed.has('arrowright')?1:0);
- const forward=(pressed.has('w')||pressed.has('arrowup')?1:0)-(pressed.has('s')||pressed.has('arrowdown')?1:0);
+ const right=(pressed.has(settings.bindings.left)?1:0)-(pressed.has(settings.bindings.right)?1:0);
+ const forward=(pressed.has(settings.bindings.forward)?1:0)-(pressed.has(settings.bindings.backward)?1:0);
  return {
   move:[right,forward],cam_yaw_deg:camAngle*180/Math.PI+180,
   jump:pressed.has(' '),dash:pressed.has('shift'),interact:pressed.has('e'),
@@ -451,7 +592,9 @@ function eventReaction(event:any){
   case 'player_hit':toast('⚠ Mây bị tấn công!');sound(170,.2);break;
   case 'charm_picked':toast('🍃 Bùa Gió — nhanh hơn và lướt không hồi chiêu!');sound(880,.2);break;
   case 'drifter_steal':toast('🌫 Gió Lạc đã cướp đom đóm!');sound(210,.15);break;
-  case 'shade_spawned':sound(130,.2);break;
+  case 'shade_spawned':
+   lastSpawnId=event.data.id;lastSpawnNoticeUntil=performance.now()+4500;
+   sound(130,.2);break;
   case 'paused':pauseMenu();break;
   case 'resumed':mode='playing';el('screen').classList.add('hidden');break;
  }
@@ -460,6 +603,9 @@ let previous=performance.now(),frames=0,lastFPS=performance.now(),fps=0,lastCoun
 function animate(now:number){
  requestAnimationFrame(animate);
  const elapsed=Math.min(.10,(now-previous)/1000);previous=now;
+ if(mode==='bench'&&activeBench){
+  activeBench.frame(now,{game,camera,renderer,scene,shades,motes});return;
+ }
  frames++;
  if(now-lastFPS>=1000){fps=Math.round(frames*1000/(now-lastFPS));frames=0;lastFPS=now;el('fps').textContent='FPS '+fps;}
  if(mode==='playing'||mode==='pause'){
@@ -515,12 +661,26 @@ function animate(now:number){
   const hits=cameraRay.intersectObjects(candidates,false);
   if(hits.length)dest.copy(lookAt).addScaledVector(aim.normalize(),Math.max(1.8,hits[0].distance-.6));
  }
- camera.position.lerp(dest,.16);
+ if(settings.reducedMotion)camera.position.copy(dest);else camera.position.lerp(dest,.16);
  camera.lookAt(lookAt);
  renderer.render(scene,camera);
 }
-menu();buildWorld(1);sync();
-if(new URLSearchParams(location.search).has('autoplay')){
+if(isBenchmark){
+ if(!Number.isInteger(benchSeed)||!Number.isFinite(benchDuration)||benchDuration<=0)
+  throw Error('Invalid benchmark arguments');
+ activeBench=makeBenchmark(benchSeed,benchDuration);
+ game=activeBench.game;night=1;buildWorld(1);sync();
+ mode='bench';may.position.set(0,0,0);
+ el('screen').classList.add('hidden');
+ (document.querySelector('.hud') as HTMLElement).style.display='none';
+ camera.position.set(30,15,0);camera.lookAt(0,0,0);
+ (window as any).__benchmarkInfo={shades:game.shades.length,motes:game.motes.length,
+  lit:game.lanterns.filter((l:any)=>l.lit).length};
+}else{menu();buildWorld(1);sync();}
+if(!isBenchmark&&new URLSearchParams(location.search).has('score-proof')){
+ begin(1);game.state='lost';result();
+}
+if(!isBenchmark&&new URLSearchParams(location.search).has('autoplay')){
  const n=Number(new URLSearchParams(location.search).get('autoplay'));begin([1,2,3].includes(n)?n:1);
 }
 requestAnimationFrame(animate);

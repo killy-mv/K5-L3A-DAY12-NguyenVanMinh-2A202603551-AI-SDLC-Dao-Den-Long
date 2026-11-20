@@ -38,3 +38,41 @@ kbd{border:1px solid #f2c14e5c;border-radius:5px;padding:3px 5px;color:#ffe9b0;b
 .colorblind #windAlert{color:#fff!important}
 .colorblind #toast{color:#fff}
 .moteSlots{flex-wrap:wrap;max-width:340px}
+
+/* TICKET-04 / 1280x720 accessible UI: all readable content >=18px. */
+@media(min-width:701px){
+ :root{font-size:18px}
+ .micro,.controls,.dialog p,.dialog button,.dialog input,.setting,#fps,
+ #windAlert,#hint,#pointer,.dim,#bindStatus,#saveMessage{font-size:18px}
+ .group{padding:12px 16px}
+ .dialog{max-width:710px}
+ #toast{font-size:20px}
+}
+.dialog{max-height:94vh;overflow-y:auto}
+#settingsPanel{max-height:62vh;overflow-y:auto}
+.setting input[type="checkbox"]{width:24px;height:24px;flex:none}
+#keyBindings{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+#keyBindings .setting{margin:4px 0}
+#keyBindings .setting button{min-width:95px}
+#bindStatus,#saveMessage{min-height:24px;color:#ffe9b0}
+#boardList{margin:12px 0;overflow-x:auto}
+#saveScore{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;margin:15px 0}
+#saveScore.hidden{display:none}
+#saveScore input{width:165px;min-width:0;background:#111a31;border:1px solid #ffe9b07a;
+ color:#fff;padding:10px;border-radius:8px}
+.leaderboardTable{width:100%;border-collapse:collapse;text-align:left;font-size:18px}
+.leaderboardTable td,.leaderboardTable th{border-bottom:1px solid #ffffff32;padding:6px}
+#lowFuel,#lastTen,#threatArrow{position:absolute;left:50%;transform:translateX(-50%);
+ text-align:center;min-width:210px;color:#fff;font-size:18px;font-weight:800;
+ text-shadow:0 2px 6px #000;pointer-events:none}
+#lowFuel{top:170px;color:#ffcf6d}
+#lastTen{top:205px;color:#fff}
+#threatArrow{top:240px;color:#ffa9a9}
+.reduce-motion .danger{animation:none!important}
+.large-text .micro,.large-text .controls,.large-text .dialog p,
+.large-text .dialog button,.large-text .dialog input,.large-text .setting,
+.large-text #windAlert,.large-text #hint,.large-text #pointer,
+.large-text .dim,.large-text #lowFuel,.large-text #lastTen,
+.large-text #threatArrow,.large-text .leaderboardTable{font-size:22.5px}
+.large-text .large{font-size:27.5px}
+@media(max-width:700px){#keyBindings{grid-template-columns:1fr}}
