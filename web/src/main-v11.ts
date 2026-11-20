@@ -51,7 +51,8 @@ const scene=new THREE.Scene();scene.background=new THREE.Color('#0E1430');
 scene.fog=new THREE.FogExp2('#1B2350',.009);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,600);
 const ambient=new THREE.HemisphereLight('#cad2ff','#1B2350',.15);scene.add(ambient);
-const moon=new THREE.DirectionalLight('#b1c6ff',1.6);moon.position.set(-12,25,12);moon.castShadow=true;
+const moon=new THREE.DirectionalLight('#b1c6ff',1.8);moon.position.set(-12,25,12);moon.castShadow=true;
+const fill=new THREE.DirectionalLight('#b1c6ff',.55);fill.position.set(16,15,-18);scene.add(fill);
 moon.shadow.mapSize.set(1024,1024);moon.shadow.camera.left=-90;moon.shadow.camera.right=90;
 moon.shadow.camera.top=90;moon.shadow.camera.bottom=-90;scene.add(moon);
 const m=(color:number|string,extra:Record<string,unknown>={})=>new THREE.MeshStandardMaterial({color,roughness:.85,...extra});
@@ -60,6 +61,9 @@ const create=(geometry:THREE.BufferGeometry,mat:THREE.Material,x=0,y=0,z=0)=>{
 };
 const stage=new THREE.Group();scene.add(stage);
 const props=new THREE.Group();scene.add(props);
+const cameraObstacles:THREE.Object3D[]=[];
+const cameraRay=new THREE.Raycaster();
+let upperSurface:THREE.Mesh|null=null;
 const ocean=create(new THREE.PlaneGeometry(2000,2000),m('#12384A',{roughness:.3}),0,-13,0);
 ocean.rotation.x=-Math.PI/2;scene.add(ocean);
 const bodyMat=m('#E8E2D0'),scarfMat=m('#C8102E'),skin=m('#ffe0bd');
@@ -84,12 +88,14 @@ const shadeMaterial=m('#120A1A',{roughness:.3}),eyes=new THREE.MeshBasicMaterial
 let game=new Game({night:1,seed:2026}),night=1,total=0,mode:'menu'|'intro'|'playing'|'pause'|'won'|'lost'|'dawn'='menu';
 function clearGroup(g:THREE.Group){while(g.children.length)g.remove(g.children[0]);}
 function addIsland(x:number,z:number,r:number,y=0){
- const base=create(new THREE.CylinderGeometry(r,r-1.7,4,64),m('#6B4A2F'),x,y-2,z);
- const turf=create(new THREE.CylinderGeometry(r-.04,r,.24,64),m('#2F5D50'),x,y-.12,z);
+ // Turf must sit above the base top rather than on the same plane (z-fighting).
+ const base=create(new THREE.CylinderGeometry(r,r-1.7,4,96),m('#6B4A2F'),x,y-2.18,z);
+ const turf=create(new THREE.CylinderGeometry(r-.04,r,.24,96),m('#2F5D50'),x,y-.12,z);
+ base.castShadow=false;
  stage.add(base,turf);
 }
 function buildWorld(id:number){
- clearGroup(stage);clearGroup(props);
+ clearGroup(stage);clearGroup(props);cameraObstacles.length=0;upperSurface=null;
  const map=(MAPS as Record<number,any>)[id];
  if(id===1)addIsland(0,0,40);
  if(id===2){
@@ -103,18 +109,26 @@ function buildWorld(id:number){
  }
  if(id===3){
   addIsland(0,0,45);
-  const r1=create(new THREE.RingGeometry(12,24,64,1,0,Math.PI),
+  // Half-annulus platform, with a real lower rim instead of a paper-thin surface.
+  const r1=create(new THREE.RingGeometry(12,24,96,1,0,Math.PI),
    m('#2F5D50',{side:THREE.DoubleSide}),0,3,0);
-  r1.rotation.x=Math.PI/2;stage.add(r1);
-  // Elevated disk must be a platform, not a solid wall obstructing the spawn below it.
-  stage.add(create(new THREE.CylinderGeometry(8,8,.32,64),m('#C9B48A'),0,5.84,0));
+  r1.rotation.x=-Math.PI/2;r1.castShadow=false;
+  stage.add(r1);cameraObstacles.push(r1);
+  const upperMat=m('#C9B48A',{transparent:true,opacity:1,side:THREE.DoubleSide});
+  const upper=create(new THREE.CylinderGeometry(8,8,.32,64),upperMat,0,5.84,0);
+  upper.castShadow=false;
+  stage.add(upper);cameraObstacles.push(upper);upperSurface=upper;
   for(const angle of [30,150]){
    const a=angle*Math.PI/180;
-   const ramp=create(new THREE.BoxGeometry(6.7,.22,3),m('#C9B48A'),27*Math.cos(a),1.5,27*Math.sin(a));
-   ramp.rotation.y=-a;ramp.rotation.z=.46;stage.add(ramp);
+   // Align ramp's long axis radially, incline 3m over 6m horizontally.
+   const ramp=create(new THREE.BoxGeometry(Math.hypot(6,3),.24,3),m('#C9B48A'),
+    27*Math.cos(a),1.5,27*Math.sin(a));
+   const heading=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-a);
+   const slope=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),-Math.atan2(3,6));
+   ramp.quaternion.copy(heading.multiply(slope));stage.add(ramp);
   }
   const tower=create(new THREE.CylinderGeometry(2,2,8,14),m('#6B4A2F'),0,10,0);
-  stage.add(tower);
+  stage.add(tower);cameraObstacles.push(tower);
   const bell=create(new THREE.ConeGeometry(2.5,2,12),m('#F2C14E'),0,15,0);stage.add(bell);
  }
  const pads=id===2?[[20,0,18],[50,0,-18]]:id===3?[[0,3,13]]:[];
@@ -303,7 +317,14 @@ function intro(n:number){
 function begin(n:number){
  night=n;game=new Game({night:n,seed:2026+n});buildWorld(n);
  mode='playing';el('screen').classList.add('hidden');
- pressed.clear();accumulator=0;lastCountdown=-1;camAngle=Math.PI;camPitch=n===3?.18:.48;sync();
+ pressed.clear();accumulator=0;lastCountdown=-1;camAngle=Math.PI;camPitch=n===3?.18:.48;
+ const pos=game.player.pos;
+ camera.position.set(
+  pos[0]+Math.sin(camAngle)*Math.cos(camPitch)*camDistance,
+  pos[1]+1.7+Math.sin(camPitch)*camDistance,
+  pos[2]+Math.cos(camAngle)*Math.cos(camPitch)*camDistance
+ );
+ camera.lookAt(pos[0],pos[1]+1.5,pos[2]);sync();
 }
 function result(){
  if(game.state==='won'){
@@ -422,8 +443,22 @@ function animate(now:number){
   p[1]+1.7+Math.sin(camPitch)*camDistance,
   p[2]+Math.cos(camAngle)*Math.cos(camPitch)*camDistance
  );
- camera.position.lerp(dest,.12);
- camera.lookAt(new THREE.Vector3(p[0],p[1]+1.5,p[2]));
+ const lookAt=new THREE.Vector3(p[0],p[1]+1.5,p[2]);
+ const isBeneathUpper=night===3&&p[1]<5.5&&Math.hypot(p[0],p[2])<11;
+ if(upperSurface){
+  const mat=upperSurface.material as THREE.MeshStandardMaterial;
+  mat.opacity=THREE.MathUtils.lerp(mat.opacity,isBeneathUpper?.12:1,.18);
+ }
+ const aim=dest.clone().sub(lookAt),length=aim.length();
+ if(length>.001&&cameraObstacles.length){
+  cameraRay.set(lookAt,aim.clone().normalize());
+  cameraRay.far=length;
+  const candidates=isBeneathUpper?cameraObstacles.filter(x=>x!==upperSurface):cameraObstacles;
+  const hits=cameraRay.intersectObjects(candidates,false);
+  if(hits.length)dest.copy(lookAt).addScaledVector(aim.normalize(),Math.max(1.8,hits[0].distance-.6));
+ }
+ camera.position.lerp(dest,.16);
+ camera.lookAt(lookAt);
  renderer.render(scene,camera);
 }
 menu();buildWorld(1);sync();
