@@ -18,13 +18,16 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Install and test
-        run: |
-          npm --prefix web ci
-          npm --prefix web test
-          npm --prefix web run build
-          node scripts/verify.mjs
-          node --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out soak-ci.json
+      - name: Install dependencies
+        run: npm --prefix web ci
+      - name: Node regression tests
+        run: npm --prefix web test
+      - name: Build static web
+        run: npm --prefix web run build
+      - name: Verify contract v1.3
+        run: node scripts/verify.mjs
+      - name: Soak 10 nights
+        run: node --expose-gc scripts/soak.mjs --seed 7 --nights 10 --out soak-ci.json
       - name: Pack portable web build
         run: python3 scripts/package-release.py
       - name: Create or update GitHub Release
