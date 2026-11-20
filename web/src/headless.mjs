@@ -16,8 +16,8 @@ function parseArgs(args) {
       out[k] = Number(v);
     } else out[k] = v;
   }
-  if (!Number.isSafeInteger(out.ticks) || out.ticks < 0 || !out.out || out.night !== 1)
-    throw new TypeError('Required: --night 1 --ticks <nonnegative int> --out <file.jsonl>');
+  if (!Number.isSafeInteger(out.ticks) || out.ticks < 0 || !out.out || ![1,2,3].includes(out.night))
+    throw new TypeError('Required: --night 1|2|3 --ticks <nonnegative int> --out <file.jsonl>');
   if (!Number.isSafeInteger(out.snapshotEvery) || out.snapshotEvery < 1)
     throw new TypeError('--snapshot-every must be a positive integer');
   return out;
@@ -31,7 +31,7 @@ function main() {
     const opts = parseArgs(process.argv.slice(2));
     const scenario = opts.scenario ? readJson(opts.scenario, 'scenario') : undefined;
     const inputs = opts.inputs ? readJson(opts.inputs, 'inputs') : undefined;
-    const rows = runSimulation({ seed: opts.seed, scenario, inputs },
+    const rows = runSimulation({ seed: opts.seed, night: opts.night, scenario, inputs },
       { ticks: opts.ticks, snapshotEvery: opts.snapshotEvery });
     fs.mkdirSync(path.dirname(path.resolve(opts.out)), { recursive: true });
     fs.writeFileSync(opts.out, rows.map(x => JSON.stringify(x)).join('\n') + '\n');

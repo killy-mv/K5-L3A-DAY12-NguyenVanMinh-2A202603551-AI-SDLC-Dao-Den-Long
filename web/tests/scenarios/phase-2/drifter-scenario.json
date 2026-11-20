@@ -1,0 +1,22 @@
+{
+  "random_motes": false,
+  "random_shades": false,
+  "random_drifters": false,
+  "motes": [],
+  "shades": [],
+  "drifters": [
+    {
+      "id": "D1",
+      "pos": [
+        0,
+        1,
+        0
+      ],
+      "state": "chase",
+      "stolen": 0
+    }
+  ],
+  "player": {
+    "carried": 6
+  }
+}
