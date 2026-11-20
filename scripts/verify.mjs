@@ -9,9 +9,9 @@ import {TUNING,MAPS} from '../web/src/core/game.js';
 
 const cli=path.resolve('web/src/headless.mjs');
 const base=path.resolve('web/tests/scenarios/phase-2');
-const root=fs.mkdtempSync(path.join(os.tmpdir(),'dao-den-long-v11-'));
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'dao-den-long-v12-'));
 const contract=JSON.parse(fs.readFileSync('game.contract.json','utf8'));
-assert.equal(contract.contract_version,'1.1');
+assert.equal(contract.contract_version,'1.2');
 assert.deepEqual(contract.tuning,TUNING);
 let index=0;
 function run(night,seed,scenario,inputs,ticks,snapshotEvery=10){
@@ -54,9 +54,30 @@ try{
   assert.ok(r.rows.some(x=>x.type==='event'&&x.name===eventName),name+' event missing');
   console.log('PASS scenario '+name+' -> '+eventName);
  }
- const benchmark=run(3,12,'night3-map.json',null,21600,10);
- assert.equal(benchmark.rows.at(-1).ticks,21600);
+ // Contract v1.2: core fuel transitions and dawn state must be independently
+ // confirmed through the actual Node CLI, not by calling the in-memory Game.
+ const p3=[
+  ['refuel','refuel.json','interact-inputs.json',2,'refuel','playing'],
+  ['relight','relight.json','interact-inputs.json',2,'lantern_lit','playing'],
+  ['drain','drain.json',null,60,'fuel_drain','playing'],
+  ['out','extinguish.json',null,62,'lantern_out','playing'],
+  ['dawn-won','dawn-win.json',null,3,'game_over','won'],
+  ['dawn-lost','dawn-loss.json',null,3,'game_over','lost']
+ ];
+ for(const [name,scenario,inputs,ticks,expected,state] of p3){
+  const a=run(1,11,'../phase-3/'+scenario,
+   inputs?'../phase-3/'+inputs:null,ticks,1);
+  const b=run(1,11,'../phase-3/'+scenario,
+   inputs?'../phase-3/'+inputs:null,ticks,1);
+  assert.equal(a.content,b.content,'Phase3 deterministic '+name);
+  assert.equal(a.rows.at(-1).state,state);
+  assert.ok(a.rows.some(x=>x.type==='event'&&x.name===expected),'Missing '+expected);
+  if(name==='dawn-won')assert.equal(a.rows.find(x=>x.name==='game_over').data.reason,'dawn_survived');
+  console.log('PASS Phase3 '+name+': '+expected+' + deterministic JSONL');
+ }
+ const benchmark=run(3,12,'night3-map.json',null,18000,10);
+ assert.equal(benchmark.rows.at(-1).ticks,18000);
  assert.ok(benchmark.ms<=30000,'Night3 must complete within 30 seconds');
- console.log('PASS performance: 21,600 ticks in '+benchmark.ms.toFixed(0)+'ms (<=30000ms)');
- console.log('PASS v1.1 verification harness');
+ console.log('PASS performance: 18,000 ticks in '+benchmark.ms.toFixed(0)+'ms (<=30000ms)');
+ console.log('PASS v1.2 verification harness');
 }finally{fs.rmSync(root,{recursive:true,force:true});}

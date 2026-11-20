@@ -9,9 +9,9 @@ import {Game,TUNING,MAPS,runSimulation} from '../src/core/game.js';
 const cleared={random_motes:false,random_shades:false,random_drifters:false,motes:[],shades:[],drifters:[]};
 const find=(r,name)=>r.filter(x=>x.type==='event'&&x.name===name);
 const simulate=(scenario,frames,ticks=1,night=1)=>runSimulation({night,scenario,inputs:{frames}},{ticks,snapshotEvery:1});
-test('Contract v1.1: numeric tuning agrees with engine',()=>{
+test('Contract v1.2: numeric tuning agrees with engine',()=>{
  const contract=JSON.parse(fs.readFileSync(new URL('../../game.contract.json',import.meta.url),'utf8'));
- assert.equal(contract.contract_version,'1.1');
+ assert.equal(contract.contract_version,'1.2');
  assert.deepEqual(contract.tuning,TUNING);
 });
 test('map standard exact lanterns and correct counts per night',()=>{
@@ -40,11 +40,11 @@ test('pickup checks XZ inclusive and vertical <=1.5, capacity10',()=>{
  assert.equal(r.at(-2).player.carried,10);assert.equal(r.at(-2).motes_active,1);
  assert.equal(r.at(-2).score,0);
 });
-test('deposit awards 10 per mote and 100 per lantern; honors edge',()=>{
+test('deposit awards 5 per mote and 100 per first light; honors edge',()=>{
  const sc={...cleared,player:{carried:10},lanterns:[{id:'L1',pos:[0,0,0]}]};
  const r=simulate(sc,[{tick:0,interact:true}],2);
  assert.deepEqual(find(r,'deposit')[0].data,{lantern_id:'L1',amount:10,deposited:10});
- assert.equal(r.at(-2).score,200);
+ assert.equal(r.at(-2).score,150);
  assert.equal(find(r,'deposit').length,1);
 });
 test('pulse 3 motes, stun120 ticks, push in 15 ticks and +5 score',()=>{
@@ -89,14 +89,15 @@ test('shades first spawn exactly at gameplay tick300 with IDs S1 S2',()=>{
 });
 test('a lantern scenario override never awards score on initialization',()=>{
  const g=new Game({scenario:{...cleared,lanterns:Array.from({length:5},(_,i)=>({id:'L'+(i+1),lit:true}))}});
- assert.equal(g.score,0);assert.equal(g.state,'won');
+ assert.equal(g.score,0);assert.equal(g.state,'playing');
 });
-test('win has precedence over dawn if last lamp lit on final tick',()=>{
+test('dawn-survived win is decided at dawn after final-tick deposit',()=>{
  const sc={...cleared,time_left_s:1/60,player:{carried:1},lanterns:[
  {id:'L1',pos:[0,0,0],deposited:9},...['L2','L3','L4','L5'].map(id=>({id,lit:true}))]};
  const r=simulate(sc,[{tick:0,interact:true}],2);
  assert.equal(r.at(-1).state,'won');
- assert.equal(r.at(-1).score,10+100+150);
+ assert.equal(find(r,'game_over')[0].data.reason,'dawn_survived');
+ assert.equal(r.at(-1).score,100+5+4*(50+99)+(50+100)+3*50);
 });
 test('determinism of 3 night scenarios, seed and inputs',()=>{
  for(let night=1;night<=3;night++){
@@ -104,7 +105,7 @@ test('determinism of 3 night scenarios, seed and inputs',()=>{
   assert.deepEqual(runSimulation(opts,{ticks:120}),runSimulation(opts,{ticks:120}));
  }
 });
-test('CLI v1.1 writes JSONL for night 3; bad files exit 2',()=>{
+test('CLI v1.2 writes JSONL for night 3; bad files exit 2',()=>{
  const cli=fileURLToPath(new URL('../src/headless.mjs',import.meta.url));
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ddl-v11-'));
  try{
